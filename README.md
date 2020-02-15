@@ -1,6 +1,16 @@
 # ftp-client
 
+#### FTP客户端需求
+
+- [ ] Windows图形化界面
+- [ ] 实现FTP协议，socket编程，从创建socket建立TCP连接开始，不得调用第三方控件
+    - [ ] 上传
+    - [ ] 下载
+    - [ ] 断点续传（可选）
+- [x] 标准的FTP服务器
+
 #### Description
+
 {**When you're done, you can delete the content in this README and update the file with details for others getting started with your repository**}
 
 #### Software Architecture
