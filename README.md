@@ -1,8 +1,8 @@
 # ftp-client
 
-#### FTP客户端需求
+#### Requirements
 
-- [ ] Windows图形化界面
+- [ ] Windows GUI
 - [ ] 实现FTP协议，socket编程，从创建socket建立TCP连接开始，不得调用第三方控件
     - [ ] 上传
     - [ ] 下载
