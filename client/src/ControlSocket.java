@@ -12,6 +12,7 @@ public class ControlSocket implements StreamLogging, AutoCloseable {
     private BufferedWriter writer;
     private int statusCode;
     private String message;
+    private DataSocket dataSocket;
 
     /**
      * Connect to control port of FTP server. Note that {@link #reader}
@@ -37,20 +38,66 @@ public class ControlSocket implements StreamLogging, AutoCloseable {
      * and response, try {@link #getStatusCode()} and
      * {@link #getMessage()}.
      *
-     * @param command FTP command
+     * @param command FTP command which doesn't need data socket
      * @throws IOException .
      */
     public void execute(String command) throws IOException {
         execute(command, null);
     }
 
+    /**
+     * Send FTP command and parse response. To get status code
+     * and response, try {@link #getStatusCode()} and
+     * {@link #getMessage()}.
+     *
+     * @param command FTP command which needs data socket
+     * @param dataSocket {#link DataSocket} used for transfer
+     * @throws IOException .
+     */
     public void execute(String command, DataSocket dataSocket) throws IOException {
+        waitForDataSocketClosure();
         writer.write(command);
         writer.write("\r\n");
         writer.flush();
         parseResponse(command);
-        if (dataSocket != null)
-            dataSocket.setParser(() -> parseResponse(command));
+        if (dataSocket != null) {
+            this.dataSocket = dataSocket;
+            new Thread(() -> parseAfterTransfer(command)).start();
+        }
+    }
+
+    private void parseAfterTransfer(String command) {
+        while (true) {
+            synchronized (this) {
+                if (this.dataSocket.isClosed()) {
+                    try {
+                        parseResponse(command);
+                    } catch (IOException e) {
+                        logger.severe(e.getMessage());
+                    } finally {
+                        this.dataSocket = null;
+                    }
+                    break;
+                }
+            }
+        }
+    }
+
+    private void checkDataSocketState() {
+        while (true)
+            synchronized (this) {
+                if (dataSocket == null)
+                    break;
+                else if (!dataSocket.isClosed())
+                    break;
+            }
+    }
+
+    private void waitForDataSocketClosure() {
+        while (true)
+            synchronized (this) {
+                if (dataSocket == null) break;
+            }
     }
 
     /**
@@ -95,10 +142,12 @@ public class ControlSocket implements StreamLogging, AutoCloseable {
     }
 
     public int getStatusCode() {
+        checkDataSocketState();
         return statusCode;
     }
 
     public String getMessage() {
+        checkDataSocketState();
         return message;
     }
 

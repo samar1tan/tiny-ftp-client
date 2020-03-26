@@ -12,7 +12,6 @@ public class DataSocket implements StreamLogging, AutoCloseable {
     private MODE mode;
     private Socket dataSocket;
     private ServerSocket activeSocket;
-    private Parser parser;
 
     /**
      * Mode determine how data socket are created. <P>Originally
@@ -91,16 +90,11 @@ public class DataSocket implements StreamLogging, AutoCloseable {
             while ((response = in.readLine()) != null)
                 ret.add(response);
         }
-        parser.apply();
         return ret.toArray(new String[0]);
     }
 
-    public void setParser(Parser parser) {
-        this.parser = parser;
-    }
-
-    public Parser getParser() {
-        return parser;
+    public boolean isClosed(){
+        return dataSocket.isClosed();
     }
 
     /**
