@@ -125,10 +125,10 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <pre>public interface <span class="typeNameLabel">Parser</span></pre>
 <div class="block">Parser for response from control socket after transfer completed
  in data socket. Generally <a href="Parser.html" title="&lt;Unnamed&gt;中的接口"><code>Parser</code></a> is ready after
- <a href="com.ftp.client.ControlSocket.html#execute(java.lang.String)"><code>com.ftp.client.ControlSocket.execute(java.lang.String)</code></a> gets invoked. You should apply it
- right after the closure of <a href="com.ftp.client.DataSocket.html" title="&lt;Unnamed&gt;中的类"><code>com.ftp.client.DataSocket</code></a> or its underlying
+ <a href="edu.ftp.client.ControlSocket.html#execute(java.lang.String)"><code>edu.ftp.client.ControlSocket.execute(java.lang.String)</code></a> gets invoked. You should apply it
+ right after the closure of <a href="edu.ftp.client.DataSocket.html" title="&lt;Unnamed&gt;中的类"><code>edu.ftp.client.DataSocket</code></a> or its underlying
  socket. Or at least apply it before invoking another
- <a href="com.ftp.client.ControlSocket.html#execute(java.lang.String)"><code>com.ftp.client.ControlSocket.execute(java.lang.String)</code></a>, even though that's still strongly
+ <a href="edu.ftp.client.ControlSocket.html#execute(java.lang.String)"><code>edu.ftp.client.ControlSocket.execute(java.lang.String)</code></a>, even though that's still strongly
  discouraged.</div>
 </li>
 </ul>
