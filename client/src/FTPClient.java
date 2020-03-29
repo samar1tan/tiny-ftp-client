@@ -1,3 +1,5 @@
+package com.ftp.client;
+
 import java.io.*;
 
 /**
@@ -7,7 +9,6 @@ import java.io.*;
 public class FTPClient implements StreamLogging {
     private String remoteDir = "/";
     private ControlSocket controlSocket;
-    private DataSocket.MODE mode = DataSocket.MODE.PASV;
 
     /**
      * Connect to FTP server. To retrieve response,
@@ -58,7 +59,7 @@ public class FTPClient implements StreamLogging {
      * @see DataSocket.MODE
      */
     public void setMode(DataSocket.MODE mode) {
-        this.mode = mode;
+        DataSocket.setMode(mode);
     }
 
     public int getStatusCode() {
@@ -79,7 +80,7 @@ public class FTPClient implements StreamLogging {
      * @throws IOException .
      */
     public String[] rawList(String dir) throws IOException {
-        DataSocket dataSocket = new DataSocket(controlSocket, mode);
+        DataSocket dataSocket = new DataSocket(controlSocket);
         controlSocket.execute("LIST " + dir, dataSocket);
         return dataSocket.getTextResponse();
     }
@@ -108,7 +109,7 @@ public class FTPClient implements StreamLogging {
      * @see FTPPath
      */
     public FTPPath[] list(String dir) throws IOException {
-        DataSocket dataSocket = new DataSocket(controlSocket, mode);
+        DataSocket dataSocket = new DataSocket(controlSocket);
         controlSocket.execute("MLSD " + dir, dataSocket);
         if (controlSocket.getStatusCode() != 150) {
             dataSocket.close();
@@ -156,8 +157,7 @@ public class FTPClient implements StreamLogging {
     }
 
     public static void main(String[] args) throws IOException, InterruptedException {
-        StreamLogging.addLogHandler(new FileOutputStream(
-                new File("log.txt")), null);
+        StreamLogging.addLogPublisher(System.out::println);
         FTPClient ftp = new FTPClient("192.168.31.94", 21);
         ftp.login("anonymous", "");
         ftp.rename("a", "abc");

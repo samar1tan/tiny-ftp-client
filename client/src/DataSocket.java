@@ -1,3 +1,5 @@
+package com.ftp.client;
+
 import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
@@ -9,9 +11,8 @@ import java.util.List;
  * Data Socket for FTP Client.
  */
 public class DataSocket implements StreamLogging, AutoCloseable {
-    private MODE mode;
+    private static MODE mode = MODE.PASV;
     private Socket dataSocket;
-    private ServerSocket activeSocket;
 
     /**
      * Mode determine how data socket are created. <P>Originally
@@ -25,13 +26,10 @@ public class DataSocket implements StreamLogging, AutoCloseable {
 
     /**
      * @param controlSocket A valid {@link ControlSocket} must by provided.
-     * @param mode          {@link MODE#PASV} is considered way better than
-     *                      {@link MODE#PORT}.
      * @throws IOException Thrown when {@link ControlSocket} failed to send
      *                     or {@link DataSocket} failed to create.
      */
-    public DataSocket(ControlSocket controlSocket, MODE mode) throws IOException {
-        this.mode = mode;
+    public DataSocket(ControlSocket controlSocket) throws IOException {
         if (mode == MODE.PASV) {
             controlSocket.execute("PASV");
             String[] ret = controlSocket.getMessage().split("[(|)]")[1].split(",");
@@ -41,6 +39,7 @@ public class DataSocket implements StreamLogging, AutoCloseable {
             dataSocket = new Socket(controlSocket.getRemoteAddr(), port);
         } else {
             int port;
+            ServerSocket activeSocket;
             if (mode == MODE.PORT_STRICT) {
                 port = controlSocket.getLocalPort() + 1;
                 activeSocket = new ServerSocket(port);
@@ -52,25 +51,20 @@ public class DataSocket implements StreamLogging, AutoCloseable {
             int p2 = port % 256;
             String addr = controlSocket.getLocalAddr().replace('.', ',');
             controlSocket.execute(String.format("PORT %s,%d,%d", addr, p1, p2));
-        }
-    }
-
-    /**
-     * This method should be called before reading anything
-     * out of the data socket. If you are working in {@link MODE#PASV}
-     * mode, you may ignore this method since it does nothing for you.
-     *
-     * @throws IOException thrown when server fails to connect in
-     *                     {@link MODE#PORT_STRICT} or {@link MODE#PORT} mode.
-     */
-    public void waitTillReady() throws IOException {
-        if (mode != MODE.PASV) {
             try {
                 dataSocket = activeSocket.accept();
             } finally {
                 activeSocket.close();
             }
         }
+    }
+
+    /**
+     * @param mode {@link MODE#PASV} is considered way better than
+     *             {@link MODE#PORT}.
+     */
+    public static void setMode(MODE mode) {
+        DataSocket.mode = mode;
     }
 
     /**
@@ -82,7 +76,6 @@ public class DataSocket implements StreamLogging, AutoCloseable {
      * @throws IOException thrown if {@link #dataSocket} failed.
      */
     public String[] getTextResponse() throws IOException {
-        waitTillReady();
         List<String> ret = new ArrayList<>();
         try (BufferedReader in = new BufferedReader(new InputStreamReader(
                 dataSocket.getInputStream(), StandardCharsets.UTF_8))) {
@@ -93,7 +86,7 @@ public class DataSocket implements StreamLogging, AutoCloseable {
         return ret.toArray(new String[0]);
     }
 
-    public boolean isClosed(){
+    public boolean isClosed() {
         return dataSocket.isClosed();
     }
 

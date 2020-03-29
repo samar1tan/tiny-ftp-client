@@ -1,8 +1,9 @@
-import java.io.OutputStream;
-import java.util.logging.Formatter;
-import java.util.logging.Logger;
-import java.util.logging.SimpleFormatter;
-import java.util.logging.StreamHandler;
+package com.ftp.client;
+
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
+import java.util.Calendar;
+import java.util.logging.*;
 
 /**
  * Stream Logger for all implemented classes.
@@ -10,17 +11,55 @@ import java.util.logging.StreamHandler;
  */
 public interface StreamLogging {
     Logger logger = Logger.getLogger("FTP");
+    DateFormat dateFormatter = new SimpleDateFormat("YYYY-MM-DD HH:mm:ss");
+    Formatter logFormatter = new Formatter() {
+        @Override
+        public String format(LogRecord record) {
+            return String.format("%s [%s] %s",
+                    dateFormatter.format(Calendar.getInstance().getTime()),
+                    record.getLevel(), record.getMessage());
+        }
+    };
 
     /**
-     * Add handler for StreamLogging interface.
+     * Add publisher for {@link StreamLogging} interface.
+     * If you simply want to log in console with prefix, try
+     * <pre><code>
+     * StreamLogging.addLogPublisher((String record)-{@literal >}{
+     *      System.out.println("MyLog: " + record);
+     * });
+     * </code></pre>
+     * or the old-fashioned way,
+     * <pre><code>
+     * StreamLogging.addLogPublisher(new StreamLoggingPublisher(){
+     *      {@literal @}Override
+     *      void publish(String logRecord){
+     *          System.out.println("MyLog: " + record);
+     *      }
+     * });
+     * </code></pre>
      *
-     * @param outStream output stream for logger
-     * @param formatter formatter for log handler,
-     *                  using {@link SimpleFormatter}
-     *                  if {@code null} is given.
+     * @param streamLoggingPublisher Publisher for logs.
+     * @see StreamLoggingPublisher
      */
-    static void addLogHandler(OutputStream outStream, Formatter formatter) {
-        logger.addHandler(new StreamHandler(outStream, formatter == null ?
-                new SimpleFormatter() : formatter));
+    static void addLogPublisher(StreamLoggingPublisher streamLoggingPublisher) {
+        logger.setUseParentHandlers(false);
+        logger.addHandler(new StreamLoggingHandler() {
+            @Override
+            public void publish(LogRecord logRecord) {
+                streamLoggingPublisher.publish(logFormatter.format(logRecord));
+            }
+        });
     }
 }
+
+abstract class StreamLoggingHandler extends Handler {
+    @Override
+    public void flush() {
+    }
+
+    @Override
+    public void close() throws SecurityException {
+    }
+}
+

@@ -1,3 +1,5 @@
+package com.ftp.client;
+
 import java.io.*;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
@@ -5,7 +7,7 @@ import java.nio.charset.StandardCharsets;
 /**
  * Control Socket for FTP Client.
  */
-public class ControlSocket implements StreamLogging, AutoCloseable {
+public class ControlSocket implements StreamLogging {
     private Socket controlSocket;
     private String remoteAddr;
     private BufferedReader reader;
@@ -51,7 +53,7 @@ public class ControlSocket implements StreamLogging, AutoCloseable {
      * {@link #getMessage()}.
      *
      * @param command FTP command which needs data socket
-     * @param dataSocket {#link DataSocket} used for transfer
+     * @param dataSocket {@link DataSocket} used for transfer
      * @throws IOException .
      */
     public void execute(String command, DataSocket dataSocket) throws IOException {
@@ -133,14 +135,6 @@ public class ControlSocket implements StreamLogging, AutoCloseable {
         return controlSocket.getLocalPort();
     }
 
-    public BufferedReader getReader() {
-        return reader;
-    }
-
-    public BufferedWriter getWriter() {
-        return writer;
-    }
-
     public int getStatusCode() {
         checkDataSocketState();
         return statusCode;
@@ -151,8 +145,7 @@ public class ControlSocket implements StreamLogging, AutoCloseable {
         return message;
     }
 
-    @Override
-    public void close() throws IOException {
+    void close() throws IOException {
         controlSocket.close();
     }
 }

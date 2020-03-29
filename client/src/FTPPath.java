@@ -1,3 +1,5 @@
+package com.ftp.client;
+
 /**
  * Representation of file and directory.
  * Note that this is <b>NOT</b> a resource.
@@ -66,7 +68,7 @@ public class FTPPath implements StreamLogging {
 
     @Override
     public String toString() {
-        return "FTPPath{" +
+        return "com.ftp.client.FTPPath{" +
                 "isDirectory=" + isDirectory +
                 ", readable=" + readable +
                 ", writable=" + writable +
