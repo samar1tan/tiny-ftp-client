@@ -17,7 +17,9 @@ public class FTPClientHandler implements InvocationHandler, StreamLogging {
             constructor.setAccessible(true);
             ftpClient = constructor.newInstance(addr, port);
         }catch (Exception e) {
-            logger.severe(e.getCause().getMessage());
+            logger.severe(e.getMessage() == null
+                    ? e.getCause().getMessage()
+                    : e.getMessage());
         }
     }
 
@@ -29,7 +31,7 @@ public class FTPClientHandler implements InvocationHandler, StreamLogging {
             ret = method.invoke(ftpClient, objects);
         } catch (Exception e) {
             logger.severe(e.getMessage() == null
-                    ? "Connection probably failed. Try reconnect!"
+                    ? e.getCause().getMessage()
                     : e.getMessage());
         }
         logger.exiting(FTPClient.class.toString(), method.toString());

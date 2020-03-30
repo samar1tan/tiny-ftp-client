@@ -1,7 +1,6 @@
 package edu.ftp.client;
 
 import java.io.*;
-import java.net.ServerSocket;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -11,7 +10,6 @@ import java.util.List;
  * Data Socket for FTP Client.
  */
 public class DataSocket implements StreamLogging, AutoCloseable {
-    private static MODE mode = MODE.PASV;
     private Socket dataSocket;
 
     /**
@@ -25,46 +23,12 @@ public class DataSocket implements StreamLogging, AutoCloseable {
     public enum MODE {PASV, PORT_STRICT, PORT}
 
     /**
-     * @param controlSocket A valid {@link ControlSocket} must by provided.
-     * @throws IOException Thrown when {@link ControlSocket} failed to send
-     *                     or {@link DataSocket} failed to create.
+     * Constructor not to expose outside the package.
+     *
+     * @param dataSocket The underlying data socket.
      */
-    public DataSocket(ControlSocket controlSocket) throws IOException {
-        if (mode == MODE.PASV) {
-            controlSocket.execute("PASV");
-            String[] ret = controlSocket.getMessage().split("[(|)]")[1].split(",");
-            int p1 = Integer.parseInt(ret[4]);
-            int p2 = Integer.parseInt(ret[5]);
-            int port = p1 * 256 + p2;
-            dataSocket = new Socket(controlSocket.getRemoteAddr(), port);
-        } else {
-            int port;
-            ServerSocket activeSocket;
-            if (mode == MODE.PORT_STRICT) {
-                port = controlSocket.getLocalPort() + 1;
-                activeSocket = new ServerSocket(port);
-            } else {
-                activeSocket = new ServerSocket(0);
-                port = activeSocket.getLocalPort();
-            }
-            int p1 = port / 256;
-            int p2 = port % 256;
-            String addr = controlSocket.getLocalAddr().replace('.', ',');
-            controlSocket.execute(String.format("PORT %s,%d,%d", addr, p1, p2));
-            try {
-                dataSocket = activeSocket.accept();
-            } finally {
-                activeSocket.close();
-            }
-        }
-    }
-
-    /**
-     * @param mode {@link MODE#PASV} is considered way better than
-     *             {@link MODE#PORT}.
-     */
-    public static void setMode(MODE mode) {
-        DataSocket.mode = mode;
+    DataSocket(Socket dataSocket) {
+        this.dataSocket = dataSocket;
     }
 
     /**

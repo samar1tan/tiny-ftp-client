@@ -1,12 +1,15 @@
 package edu.ftp.client;
 
-import java.io.*;
+import java.io.FileOutputStream;
+import java.io.IOException;
 import java.lang.reflect.Proxy;
 
 /**
  * FTP client implementation for modern FTP servers. Implementations
  * on both RFC 959 and RFC 3659 are required on the server side.
- * Most methods will return {@code null} if any exception occurred.
+ * Note that no exception will get actually thrown. Most methods
+ * will return {@code null} if any exception occurred.
+ * @see FTPClientHandler
  */
 public class FTPClientImpl implements FTPClient, StreamLogging {
     private String remoteDir = "/";
@@ -50,7 +53,6 @@ public class FTPClientImpl implements FTPClient, StreamLogging {
      * @param user username for ftp account
      * @param pass password for ftp account
      * @return {@code true} if access granted.
-     * @throws IOException thrown if {@link #controlSocket} went wrong.
      */
     @Override
     public Boolean login(String user, String pass) throws IOException {
@@ -67,9 +69,12 @@ public class FTPClientImpl implements FTPClient, StreamLogging {
      * @throws IOException .
      */
     @Override
-    public void quit() throws IOException {
+    public Boolean quit() throws IOException {
         controlSocket.execute("QUIT");
+        if (controlSocket.getStatusCode() != 221)
+            return false;
         controlSocket.close();
+        return true;
     }
 
     /**
@@ -80,7 +85,20 @@ public class FTPClientImpl implements FTPClient, StreamLogging {
      */
     @Override
     public void setMode(DataSocket.MODE mode) {
-        DataSocket.setMode(mode);
+        controlSocket.setMode(mode);
+    }
+
+    /**
+     * Set keep alive interval for control socket. Typically, server
+     * will disconnect client if the socket remains idle for a period
+     * of time. In order to avoid that, the client will send a dummy
+     * packet to server once in a while to stay active.
+     * @param mSeconds the client will send a dummy packet when
+     *                 control socket remain idle for {@code mSeconds}
+     */
+    @Override
+    public void setKeepAliveInterval(long mSeconds) {
+        controlSocket.setKeepAliveInterval(mSeconds);
     }
 
     @Override
@@ -104,9 +122,14 @@ public class FTPClientImpl implements FTPClient, StreamLogging {
      */
     @Override
     public String[] rawList(String dir) throws IOException {
-        DataSocket dataSocket = new DataSocket(controlSocket);
-        controlSocket.execute("LIST " + dir, dataSocket);
-        return dataSocket.getTextResponse();
+        DataSocket dataSocket =
+                controlSocket.execute("LIST " + dir, true);
+        if (controlSocket.getStatusCode() / 100 != 1) {
+            dataSocket.close();
+            return null;
+        }
+        String[] ret = dataSocket.getTextResponse();
+        return (controlSocket.getStatusCode() / 100 != 2) ? null : ret;
     }
 
     /**
@@ -135,15 +158,19 @@ public class FTPClientImpl implements FTPClient, StreamLogging {
      */
     @Override
     public FTPPath[] list(String dir) throws IOException {
-        DataSocket dataSocket = new DataSocket(controlSocket);
-        controlSocket.execute("MLSD " + dir, dataSocket);
+        DataSocket dataSocket =
+                controlSocket.execute("MLSD " + dir, true);
         if (controlSocket.getStatusCode() != 150) {
             dataSocket.close();
             return null;
         }
         FTPPath[] paths = FTPPath.parseFromMLSD(
                 dir, dataSocket.getTextResponse());
+        if (controlSocket.getStatusCode() != 226)
+            return null;
         String[] res = rawList(dir);
+        if (res == null)
+            return null;
         for (int i = 0; i < res.length; i++)
             paths[i].addPermission(res[i]);
         return paths;
@@ -155,15 +182,20 @@ public class FTPClientImpl implements FTPClient, StreamLogging {
      *
      * @param dir Remote directory.
      * @return {@code false} if directory not found else {@code true}
-     * @throws IOException .
      */
     @Override
-    public Boolean chdir(String dir) throws IOException {
+    public Boolean changeWorkingDirectory(String dir) throws IOException {
         controlSocket.execute("CWD " + dir);
         boolean ret = controlSocket.getStatusCode() == 250;
+        return getWorkingDirectory() == null ? null : ret;
+    }
+
+    @Override
+    public String getWorkingDirectory() throws IOException {
         controlSocket.execute("PWD");
-        remoteDir = controlSocket.getMessage().split("\"")[1];
-        return ret;
+        return controlSocket.getStatusCode() == 257
+                ? (remoteDir = controlSocket.getMessage().split("\"")[1])
+                : null;
     }
 
     /**
@@ -173,7 +205,6 @@ public class FTPClientImpl implements FTPClient, StreamLogging {
      * @param newName New name.
      * @return {@code false} if directory not found, permission denied,
      * or other shits happened else {@code true}.
-     * @throws IOException .
      */
     @Override
     public Boolean rename(String oldName, String newName) throws IOException {
@@ -184,19 +215,49 @@ public class FTPClientImpl implements FTPClient, StreamLogging {
         return controlSocket.getStatusCode() == 250;
     }
 
-    public static void main(String[] args) throws Exception {
-        addLogPublisher(System.out::println);
+    @Override
+    public Boolean deleteFile(String path) throws IOException {
+        controlSocket.execute("DELE " + path);
+        return controlSocket.getStatusCode() == 250;
+    }
 
+    @Override
+    public Boolean removeDirectory(String path) throws IOException {
+        controlSocket.execute("RMD " + path);
+        return controlSocket.getStatusCode() == 250;
+    }
+
+    @Override
+    public Boolean makeDirectory(String path) throws IOException {
+        controlSocket.execute("MKD " + path);
+        return controlSocket.getStatusCode() == 257;
+    }
+
+    @Override
+    public void help() throws IOException {
+        controlSocket.execute("HELP");
+    }
+
+    public static void main(String[] args) throws Exception {
+        // log to console
+        StreamLogging.addLogPublisher(System.out::print);
+        // log to file as well
+        StreamLogging.addLogStream(new FileOutputStream("log.txt"));
+        // this is not a singleton
         FTPClient ftp = FTPClientImpl.getFTPClient("192.168.31.94", 21);
         ftp.login("anonymous", "");
         ftp.rename("a", "abc");
-        ftp.chdir("b.txt");
+        ftp.getWorkingDirectory();
         for (FTPPath f : ftp.list()) {
             System.out.println(f);
         }
-        ftp.quit();
+        ftp.deleteFile("b");
+        ftp.removeDirectory("b");
+        ftp.makeDirectory("b");
         ftp.rename("a", "abc");
-        ftp.chdir("b.txt");
+        ftp.changeWorkingDirectory("b.txt");
+        Thread.sleep(8000);
+        ftp.help();
         ftp.quit();
     }
 }

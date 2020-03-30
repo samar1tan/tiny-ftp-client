@@ -1,5 +1,6 @@
 package edu.ftp.client;
 
+import java.io.OutputStream;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
@@ -16,7 +17,7 @@ public interface StreamLogging {
         @Override
         public String format(LogRecord record) {
             String[] sourceClass = record.getSourceClassName().split("\\.");
-            return String.format("%s [%s] <%s> %s",
+            return String.format("%s [%s] <%s> %s\n",
                     dateFormatter.format(Calendar.getInstance().getTime()),
                     record.getLevel(),
                     sourceClass[sourceClass.length - 1],
@@ -54,15 +55,22 @@ public interface StreamLogging {
             }
         });
     }
+
+    /**
+     * Add {@link Handler} implementations for interface.
+     * @param stream .
+     */
+    static void addLogStream(OutputStream stream){
+        logger.setUseParentHandlers(false);
+        logger.addHandler(new StreamHandler(stream, logFormatter));
+    }
 }
 
 abstract class StreamLoggingHandler extends Handler {
     @Override
-    public void flush() {
-    }
+    public void flush() {}
 
     @Override
-    public void close() throws SecurityException {
-    }
+    public void close() throws SecurityException {}
 }
 
