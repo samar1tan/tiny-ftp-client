@@ -1,5 +1,7 @@
 package edu.ftp.client;
 
+import edu.ftp.client.logging.StreamLogging;
+
 import java.io.*;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
@@ -10,7 +12,7 @@ import java.util.List;
  * Data Socket for FTP Client.
  */
 public class DataSocket implements StreamLogging, AutoCloseable {
-    private Socket dataSocket;
+    private final Socket dataSocket;
 
     /**
      * Mode determine how data socket are created. <P>Originally

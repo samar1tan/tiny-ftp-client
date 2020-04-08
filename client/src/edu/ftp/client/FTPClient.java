@@ -39,4 +39,9 @@ public interface FTPClient {
     Boolean removeDirectory(String path) throws IOException;
 
     Boolean makeDirectory(String path) throws IOException;
+
+    void abort() throws IOException;
+
+    @NeedSpareThread
+    void download(String path);
 }

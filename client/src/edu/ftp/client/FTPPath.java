@@ -1,5 +1,7 @@
 package edu.ftp.client;
 
+import edu.ftp.client.logging.StreamLogging;
+
 /**
  * Representation of file and directory.
  * Note that this is <b>NOT</b> a resource.

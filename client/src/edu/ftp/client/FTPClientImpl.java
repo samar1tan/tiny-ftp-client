@@ -1,15 +1,16 @@
 package edu.ftp.client;
 
-import java.io.FileOutputStream;
+import edu.ftp.client.logging.StreamLogging;
+
 import java.io.IOException;
-import java.lang.reflect.Proxy;
 
 /**
  * FTP client implementation for modern FTP servers. Implementations
  * on both RFC 959 and RFC 3659 are required on the server side.
  * Note that no exception will get actually thrown. Most methods
  * will return {@code null} if any exception occurred.
- * @see FTPClientHandler
+ *
+ * @see SimpleFTPClientHandler
  */
 public class FTPClientImpl implements FTPClient, StreamLogging {
     private String remoteDir = "/";
@@ -27,22 +28,7 @@ public class FTPClientImpl implements FTPClient, StreamLogging {
         controlSocket = new ControlSocket(addr, port);
     }
 
-    /**
-     * Connect to FTP server. To validate FTPClient, you may
-     * check for {@code null} pointer on return value.
-     * To retrieve response, see {@link ControlSocket#getStatusCode()}
-     * and {@link ControlSocket#getMessage()}.
-     *
-     * @param addr FTP server address
-     * @param port FTP server port
-     * @return {@link FTPClientImpl}
-     */
-    public static FTPClient getFTPClient(String addr, int port) {
-        return (FTPClient) Proxy.newProxyInstance(
-                FTPClientImpl.class.getClassLoader(),
-                FTPClientImpl.class.getInterfaces(),
-                new FTPClientHandler(FTPClientImpl.class, addr, port));
-    }
+    private FTPClientImpl() {}
 
     /**
      * Login for ftp client. For anonymous login, try
@@ -93,6 +79,7 @@ public class FTPClientImpl implements FTPClient, StreamLogging {
      * will disconnect client if the socket remains idle for a period
      * of time. In order to avoid that, the client will send a dummy
      * packet to server once in a while to stay active.
+     *
      * @param mSeconds the client will send a dummy packet when
      *                 control socket remain idle for {@code mSeconds}
      */
@@ -234,29 +221,42 @@ public class FTPClientImpl implements FTPClient, StreamLogging {
     }
 
     @Override
+    public void abort() throws IOException {
+        controlSocket.execute("ABOR");
+    }
+
+    @Override
+    public void download(String path) {
+        logger.info("DOWNLOADING");
+        try {
+            Thread.sleep(5000);
+        } catch (InterruptedException e) {
+            logger.warning("INTERRUPTED");
+        }
+        logger.info("DOWNLOAD COMPLETE");
+    }
+
+    @Override
     public void help() throws IOException {
         controlSocket.execute("HELP");
     }
 
     public static void main(String[] args) throws Exception {
         // log to console
-        StreamLogging.addLogPublisher(System.out::print);
-        // log to file as well
-        StreamLogging.addLogStream(new FileOutputStream("log.txt"));
+        StreamLogging.addLogPublisher(System.out::println);
         // this is not a singleton
-        FTPClient ftp = FTPClientImpl.getFTPClient("192.168.31.94", 21);
+        FTPClient ftp = FTPClientFactory
+                .newMultiThreadFTPClient("192.168.31.94", 21,3);
         ftp.login("anonymous", "");
         ftp.rename("a", "abc");
         ftp.getWorkingDirectory();
         for (FTPPath f : ftp.list()) {
             System.out.println(f);
         }
-        ftp.deleteFile("b");
-        ftp.removeDirectory("b");
-        ftp.makeDirectory("b");
-        ftp.rename("a", "abc");
-        ftp.changeWorkingDirectory("b.txt");
-        Thread.sleep(8000);
+        for (int i = 0; i < 10; i++)
+            ftp.download("");
+        ftp.changeWorkingDirectory("b");
+        Thread.sleep(10000);
         ftp.help();
         ftp.quit();
     }

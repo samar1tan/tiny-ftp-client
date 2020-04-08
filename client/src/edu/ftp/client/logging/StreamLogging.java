@@ -1,4 +1,4 @@
-package edu.ftp.client;
+package edu.ftp.client.logging;
 
 import java.io.OutputStream;
 import java.text.DateFormat;
@@ -17,10 +17,11 @@ public interface StreamLogging {
         @Override
         public String format(LogRecord record) {
             String[] sourceClass = record.getSourceClassName().split("\\.");
-            return String.format("%s [%s] <%s> %s\n",
+            return String.format("%s [%s] <%s@%d> %s",
                     dateFormatter.format(Calendar.getInstance().getTime()),
                     record.getLevel(),
                     sourceClass[sourceClass.length - 1],
+                    record.getThreadID(),
                     record.getMessage());
         }
     };

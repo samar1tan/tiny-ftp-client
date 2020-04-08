@@ -1,1 +1,1 @@
-packageSearchIndex = [{"l":"edu.ftp.client","h":"","u":""},{"l":"所有程序包","h":"","u":"allpackages-index.html"}]
+packageSearchIndex = [{"l":"edu.ftp.client","h":"","u":""},{"l":"edu.ftp.client.logging","h":"","u":""},{"l":"所有程序包","h":"","u":"allpackages-index.html"}]

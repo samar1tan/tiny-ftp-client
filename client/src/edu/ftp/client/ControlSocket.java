@@ -1,10 +1,15 @@
 package edu.ftp.client;
 
+import edu.ftp.client.logging.StreamLogging;
+
 import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
 import java.util.Calendar;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Control Socket for FTP Client.
@@ -17,9 +22,9 @@ public class ControlSocket implements StreamLogging {
     private String message;
     private String remoteAddr;
 
-    private Thread keepAliveThread;
-    private volatile long keepAliveInterval = 4000;
-    private volatile boolean shouldKeepAlive = true;
+    private final ScheduledThreadPoolExecutor threadPool =
+            (ScheduledThreadPoolExecutor) Executors.newScheduledThreadPool(1);
+    private volatile long keepAliveInterval = 30000;
     private volatile long lastExecution = Calendar.getInstance().getTimeInMillis();
 
     private DataSocket dataSocket;
@@ -41,20 +46,16 @@ public class ControlSocket implements StreamLogging {
                 controlSocket.getOutputStream(), StandardCharsets.UTF_8));
         parseResponse("CONN");
         remoteAddr = addr;
-        keepAliveThread = new Thread(() -> {
-            while (shouldKeepAlive) {
-                if (Calendar.getInstance()
-                        .getTimeInMillis() - lastExecution > keepAliveInterval) {
-                    logger.info("Sending keep-alive");
-                    try {
-                        execute("NOOP");
-                    } catch (IOException e) {
-                        logger.severe(e.getMessage());
-                    }
+        threadPool.scheduleWithFixedDelay(() -> {
+            if (Calendar.getInstance().getTimeInMillis() - lastExecution > keepAliveInterval) {
+                logger.info("Sending keep-alive");
+                try {
+                    execute("NOOP");
+                } catch (IOException e) {
+                    logger.severe(e.getMessage());
                 }
             }
-        });
-        keepAliveThread.start();
+        }, 1, 5, TimeUnit.SECONDS);
     }
 
     public DataSocket getDataSocket() throws IOException {
@@ -213,10 +214,10 @@ public class ControlSocket implements StreamLogging {
         return message;
     }
 
-    void close() throws IOException {
-        shouldKeepAlive = false;
+    public void close() throws IOException {
+        threadPool.shutdownNow();
         logger.info("Waiting for the death of keep-alive thread");
-        while (keepAliveThread.isAlive()) ;
+        while (!threadPool.isTerminated()) ;
         logger.info("Keep-alive thread died gracefully");
         controlSocket.close();
     }
