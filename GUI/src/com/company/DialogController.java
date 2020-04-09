@@ -1,3 +1,5 @@
+package com.company;
+
 import javafx.fxml.Initializable;
 import javafx.scene.control.TextField;
 

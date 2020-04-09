@@ -1,3 +1,5 @@
+package com.company;
+
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
@@ -11,11 +13,7 @@ import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.*;
-
 import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
-import java.io.IOException;
 import java.net.URL;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -56,6 +54,16 @@ public class Controller implements Initializable, StreamLogging {
     public FTPClient ftp = null;              //ftp客户端
     public FTPPath[] paths = null;            //远程目录信息
     public FTPPath chosenServerFile_path = null;  //下载时，用户选择的远程文件或目录
+    public State stateInfo;                           //状态信息
+
+    //打印状态信息
+    public void printState(String localFile,String direction,String serverFile,String size,String state){
+        stateInfo.setLocalFile(localFile);
+        stateInfo.setDirection(direction);
+        stateInfo.setServerFile(serverFile);
+        stateInfo.setSize(size);
+        stateInfo.setState(state);
+    }
 
     //获得IP地址
     public void getIP(){
@@ -80,17 +88,16 @@ public class Controller implements Initializable, StreamLogging {
     //点击“连接”按钮
     public void ClickConnectOrDisconnect(){
         if(isConnected == false){              //进行连接操作
-            ip_address = TextField_IP.getText();
-            userName = TextField_UserName.getText();
-            password = TextField_Password.getText();
+            getIP();
+            getUserName();
+            getPassword();
+            getPort();
             try {
-                port = Integer.parseInt(TextFiled_Port.getText());
-            }catch (Exception e){
-                port = -1;
-            }
-            ftp = FTPClientImpl.getFTPClient(ip_address,port);
-            if(ftp == null)
+                ftp = FTPClientFactory.newMultiThreadFTPClient(ip_address,port,3);
+            } catch (Exception e) {
+                logger.warning("IP地址或端口号错误");
                 return;
+            }
             if(userName == null) {
                 logger.warning("用户名不能为空");
                 ftp = null;
@@ -152,6 +159,9 @@ public class Controller implements Initializable, StreamLogging {
         Button_Upload.setDisable(true);
         Button_Download.setDisable(true);
 
+        stateInfo = new State("","","","","");
+        stateData.add(stateInfo);
+
         File localFile = new File(chosenLocalFile_str);
         Path path = Paths.get(chosenLocalFile_str);
         if(localFile.isFile()){         //上传文件
@@ -187,12 +197,17 @@ public class Controller implements Initializable, StreamLogging {
         Button_Upload.setDisable(true);
         Button_Download.setDisable(true);
 
+        stateInfo = new State("","","","","");
+        stateData.add(stateInfo);
+
         if(!chosenServerFile_path.isDirectory()){          //下载文件
-            //文件下载......
+            //文件下载
+            ftp.download(chosenServerFile_str);
             logger.info(chosenServerFile_str + " 文件下载成功");
         }
         else{
-            //目录下载......
+            //目录下载
+            ftp.download(chosenServerFile_str);
             logger.info(chosenServerFile_str + " 目录下载成功");
         }
 
@@ -205,10 +220,10 @@ public class Controller implements Initializable, StreamLogging {
     }
     //获得本地目录
     public void getLocalDir(int mode){
-//        if(isConnected == false){
-//            logger.warning("当前没有连接");
-//            return;
-//        }
+        if(isConnected == false){
+            logger.warning("当前没有连接");
+            return;
+        }
         List<Label> list = new ArrayList<>();
         ObservableList<Label> myObservableList = FXCollections.observableList(list);
         if(mode == 0)
@@ -226,9 +241,36 @@ public class Controller implements Initializable, StreamLogging {
             String cwd = System.getProperty("user.dir"); //获取工作目录
             localPath = cwd + File.separator + localPath;    //将localPath转为绝对路径
         }
+        ContextMenu contextMenu = new ContextMenu();
+        MenuItem localItem1 = new MenuItem("重命名");
+        localItem1.setOnAction(new EventHandler<ActionEvent>() {
+            @Override
+            public void handle(ActionEvent actionEvent) {
+                ClickLocalRename();
+            }
+        });
+        MenuItem localItem2 = new MenuItem("删除文件夹");
+        localItem2.setOnAction(new EventHandler<ActionEvent>() {
+            @Override
+            public void handle(ActionEvent actionEvent) {
+                ClickLocalRMD();
+            }
+        });
+        MenuItem localItem3 = new MenuItem("删除文件");
+        localItem3.setOnAction(new EventHandler<ActionEvent>() {
+            @Override
+            public void handle(ActionEvent actionEvent) {
+                ClickLocalDELETE();
+            }
+        });
+        contextMenu.getItems().clear();
+        contextMenu.getItems().addAll(localItem1,localItem2,localItem3);
         if(file.isFile()){                               //如果是文件
             //chosenLocalFile_str = localPath;
-            list.add(new Label(file.getName(),new ImageView(new Image("file:icon\\file.png"))));  //将文件名加入列表
+//            list.add(new Label(file.getName(),new ImageView(new Image("file:icon\\file.png"))));  //将文件名加入列表
+            Label label = new Label(file.getName(),new ImageView(new Image("file:icon\\file.png")));
+            label.setContextMenu(contextMenu);
+            list.add(label);  //将文件名加入列表
             ListView_LocalDir.setItems(myObservableList);
             chosenLocalDir_str = null;
         }
@@ -236,10 +278,18 @@ public class Controller implements Initializable, StreamLogging {
             chosenLocalDir_str= localPath;                  //设置本地目录
             File[] files = file.listFiles();             //获取目录下所有文件信息
             for(int i = 0; i < files.length; i++){       //将所有文件名加入列表
-                if(files[i].isFile())
-                    list.add(new Label(files[i].getName(),new ImageView(new Image("file:icon\\file.png"))));
-                else
-                    list.add(new Label(files[i].getName(),new ImageView(new Image("file:icon\\dir.png"))));
+                if(files[i].isFile()) {
+//                    list.add(new Label(files[i].getName(), new ImageView(new Image("file:icon\\file.png"))));
+                    Label label = new Label(files[i].getName(), new ImageView(new Image("file:icon\\file.png")));
+                    label.setContextMenu(contextMenu);
+                    list.add(label);
+                }
+                else {
+//                    list.add(new Label(files[i].getName(),new ImageView(new Image("file:icon\\dir.png"))));
+                    Label label = new Label(files[i].getName(),new ImageView(new Image("file:icon\\dir.png")));
+                    label.setContextMenu(contextMenu);
+                    list.add(label);
+                }
             }
 
             ListView_LocalDir.setItems(myObservableList);
@@ -281,11 +331,43 @@ public class Controller implements Initializable, StreamLogging {
         } catch (Exception e) {
             e.printStackTrace();
         }
+        ContextMenu contextMenu = new ContextMenu();
+        MenuItem serverItem1 = new MenuItem("重命名");
+        serverItem1.setOnAction(new EventHandler<ActionEvent>() {
+            @Override
+            public void handle(ActionEvent actionEvent) {
+                ClickServerRename();
+            }
+        });
+        MenuItem serverItem2 = new MenuItem("删除文件夹");
+        serverItem2.setOnAction(new EventHandler<ActionEvent>() {
+            @Override
+            public void handle(ActionEvent actionEvent) {
+                ClickServerRMD();
+            }
+        });
+        MenuItem serverItem3 = new MenuItem("删除文件");
+        serverItem3.setOnAction(new EventHandler<ActionEvent>() {
+            @Override
+            public void handle(ActionEvent actionEvent) {
+                ClickServerDELETE();
+            }
+        });
+        contextMenu.getItems().clear();
+        contextMenu.getItems().addAll(serverItem1,serverItem2,serverItem3);
         for(int i=0;i<paths.length;i++){
-            if(paths[i].isDirectory())
-                list.add(new Label(paths[i].getName(),new ImageView(new Image("file:icon\\dir.png"))));
-            else
-                list.add(new Label(paths[i].getName(),new ImageView(new Image("file:icon\\file.png"))));
+            if(paths[i].isDirectory()) {
+//                list.add(new Label(paths[i].getName(), new ImageView(new Image("file:icon\\dir.png"))));
+                Label label = new Label(paths[i].getName(), new ImageView(new Image("file:icon\\dir.png")));
+                label.setContextMenu(contextMenu);
+                list.add(label);
+            }
+            else {
+//                list.add(new Label(paths[i].getName(), new ImageView(new Image("file:icon\\file.png"))));
+                Label label = new Label(paths[i].getName(), new ImageView(new Image("file:icon\\file.png")));
+                label.setContextMenu(contextMenu);
+                list.add(label);
+            }
         }
         ListView_ServerDir.setItems(myObservableList);
 
@@ -453,10 +535,10 @@ public class Controller implements Initializable, StreamLogging {
 
     //点击本地“MKD”按钮
     public void ClickLocalMKD() {
-//        if(isConnected == false){
-//            logger.warning("当前没有连接");
-//            return;
-//        }
+        if(isConnected == false){
+            logger.warning("当前没有连接");
+            return;
+        }
         if(chosenLocalDir_str== null){          //没有输入本地目录
             logger.warning("没有输入本地目录");
             return;
@@ -520,10 +602,10 @@ public class Controller implements Initializable, StreamLogging {
 
     //点击本地“RMD”按钮
     public void ClickLocalRMD() {
-//        if(isConnected == false){
-//            logger.warning("当前没有连接");
-//            return;
-//        }
+        if(isConnected == false){
+            logger.warning("当前没有连接");
+            return;
+        }
         if(chosenLocalFile_str == null){            //没有选择本地目录
             logger.warning("没有选择要删除的目录");
             return;
@@ -543,10 +625,10 @@ public class Controller implements Initializable, StreamLogging {
 
     //点击本地“DELETE”按钮
     public void ClickLocalDELETE() {
-//        if(isConnected == false){
-//            logger.warning("当前没有连接");
-//            return;
-//        }
+        if(isConnected == false){
+            logger.warning("当前没有连接");
+            return;
+        }
         if(chosenLocalFile_str == null){                  //没有选择本地文件
             logger.warning("没有选择要删除的文件");
             return;
@@ -582,10 +664,10 @@ public class Controller implements Initializable, StreamLogging {
 
     //点击本地“Rename”按钮
     public void ClickLocalRename() {
-//        if(isConnected == false){
-//            logger.warning("当前没有连接");
-//            return;
-//        }
+        if(isConnected == false){
+            logger.warning("当前没有连接");
+            return;
+        }
         if(chosenLocalFile_str == null){                  //没有选择本地文件或文件夹
             logger.warning("没有选择要重命名的文件或文件夹");
             return;
@@ -636,14 +718,9 @@ public class Controller implements Initializable, StreamLogging {
         StreamLogging.addLogPublisher(new StreamLoggingPublisher() {
             @Override
             public void publish(String logRecord) {
-                TextArea_Log.appendText(logRecord);
+                TextArea_Log.appendText(logRecord + "\n");
             }
         });
-        try {
-            StreamLogging.addLogStream(new FileOutputStream("log.txt"));
-        } catch (FileNotFoundException e) {
-            e.printStackTrace();
-        }
 
         //设置背景图片
         Pane.setBackground(new Background(new BackgroundImage(new Image("file:icon\\background.png"), BackgroundRepeat.REPEAT, BackgroundRepeat.NO_REPEAT, BackgroundPosition.DEFAULT,
@@ -765,7 +842,7 @@ public class Controller implements Initializable, StreamLogging {
 
             @Override
             public void changed(ObservableValue<? extends Number> observable, Number oldValue, Number newValue) {
-                if(newValue != null){
+                if(newValue != null && newValue.intValue() != -1){
                     chosenServerFile_path = paths[newValue.intValue()];
                     chosenServerFile_str = chosenServerFile_path.getPath();
                 }
@@ -773,25 +850,21 @@ public class Controller implements Initializable, StreamLogging {
         });
 
         //设置状态信息表每一列的名称，最小宽度以及绑定Model类的属性
-        TableColumn<State,String> localFileColumn = new TableColumn<>("本地文件");
+        TableColumn<State,String> localFileColumn = new TableColumn<>("本地路径");
         localFileColumn.setMinWidth(100);
         localFileColumn.setCellValueFactory(new PropertyValueFactory<>("localFile"));
         TableColumn<State,String> directionColumn = new TableColumn<>("方向");
         directionColumn.setMinWidth(20);
         directionColumn.setStyle("-fx-alignment: CENTER;");
         directionColumn.setCellValueFactory(new PropertyValueFactory<>("direction"));
-        TableColumn<State,String> serverFileColumn = new TableColumn<>("远程文件");
+        TableColumn<State,String> serverFileColumn = new TableColumn<>("远程路径");
         serverFileColumn.setMinWidth(100);
         serverFileColumn.setCellValueFactory(new PropertyValueFactory<>("serverFile"));
         TableColumn<State,String> sizeColumn = new TableColumn<>("大小");
-        sizeColumn.setMinWidth(30);
+        sizeColumn.setMinWidth(20);
         sizeColumn.setStyle("-fx-alignment: CENTER;");
         sizeColumn.setCellValueFactory(new PropertyValueFactory<>("size"));
-        TableColumn<State,String> priorityColumn = new TableColumn<>("优先级");
-        priorityColumn.setMinWidth(30);
-        priorityColumn.setStyle("-fx-alignment: CENTER;");
-        priorityColumn.setCellValueFactory(new PropertyValueFactory<>("priority"));
-        TableColumn<State,String> stateColumn = new TableColumn<>("状态");
+        TableColumn<State,String> stateColumn = new TableColumn<>("传输状态");
         stateColumn.setMinWidth(200);
         stateColumn.setStyle("-fx-alignment: CENTER;");
         stateColumn.setCellValueFactory(new PropertyValueFactory<>("state"));
@@ -799,7 +872,7 @@ public class Controller implements Initializable, StreamLogging {
         //状态信息表绑定stateData
         Table_States.setItems(stateData);
         //将定义好的列加入状态信息表
-        Table_States.getColumns().addAll(localFileColumn,directionColumn,serverFileColumn,sizeColumn,priorityColumn,stateColumn);
+        Table_States.getColumns().addAll(localFileColumn,directionColumn,serverFileColumn,sizeColumn,stateColumn);
         //设置状态信息表的占位标志
         Table_States.setPlaceholder(new Label());
     }
@@ -809,15 +882,13 @@ public class Controller implements Initializable, StreamLogging {
         private SimpleStringProperty direction;     //方向
         private SimpleStringProperty serverFile;    //远程文件或目录
         private SimpleStringProperty size;          //大小
-        private SimpleStringProperty priority;      //优先级
         private SimpleStringProperty state;         //状态
 
-        public State(String localFile,String direction,String serverFile,String size,String priority,String state){
+        public State(String localFile,String direction,String serverFile,String size,String state){
             this.localFile = new SimpleStringProperty(localFile==null?"":localFile);
             this.direction = new SimpleStringProperty(direction==null?"":direction);
             this.serverFile = new SimpleStringProperty(serverFile==null?"":serverFile);
             this.size = new SimpleStringProperty(size==null?"":size);
-            this.priority = new SimpleStringProperty(priority==null?"":priority);
             this.state = new SimpleStringProperty(state==null?"":state);
         }
 
@@ -869,18 +940,6 @@ public class Controller implements Initializable, StreamLogging {
 
         public void setSize(String size) {
             this.size.set(size==null?"":size);
-        }
-
-        public String getPriority() {
-            return priority.get();
-        }
-
-        public SimpleStringProperty priorityProperty() {
-            return priority;
-        }
-
-        public void setPriority(String priority) {
-            this.priority.set(priority==null?"":priority);
         }
 
         public String getState() {

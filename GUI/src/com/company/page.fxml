@@ -10,6 +10,7 @@
       <Label layoutX="208.0" layoutY="24.0" text="用户名：" />
       <TextField fx:id="TextField_UserName" layoutX="258.0" layoutY="20.0" onAction="#getUserName" onMouseExited="#getUserName" prefHeight="23.0" prefWidth="107.0" />
       <Label layoutX="388.0" layoutY="24.0" text="密码：" />
+       <PasswordField fx:id="TextField_Password" layoutX="424.0" layoutY="20.0" onAction="#getPassword" onMouseExited="#getPassword" prefHeight="23.0" prefWidth="107.0" />
       <Label layoutX="555.0" layoutY="24.0" text="端口号：" />
       <TextField fx:id="TextFiled_Port" layoutX="603.0" layoutY="20.0" onAction="#getPort" onMouseExited="#getPort" prefHeight="23.0" prefWidth="47.0" />
       <Button fx:id="Button_ConnectOrDisconnect" layoutX="674.0" layoutY="16.0" mnemonicParsing="false" onAction="#ClickConnectOrDisconnect" prefHeight="31.0" prefWidth="60.0" text="连接" />
@@ -20,7 +21,6 @@
       <TextField fx:id="TextField_LocalDir" layoutX="82.0" layoutY="162.0" prefHeight="23.0" prefWidth="168.0" />
       <Label layoutX="507.0" layoutY="166.0" text="远程目录：" />
       <TextField fx:id="TextField_ServerDir" layoutX="567.0" layoutY="162.0" prefHeight="23.0" prefWidth="168.0" />
-      <PasswordField fx:id="TextField_Password" layoutX="424.0" layoutY="20.0" onAction="#getPassword" onMouseExited="#getPassword" prefHeight="23.0" prefWidth="107.0" />
       <ListView fx:id="ListView_LocalDir" layoutX="22.0" layoutY="205.0" prefHeight="278.0" prefWidth="210.0" />
       <ListView fx:id="ListView_ServerDir" layoutX="533.0" layoutY="205.0" prefHeight="278.0" prefWidth="210.0" />
       <Separator layoutX="15.0" layoutY="497.0" prefHeight="3.0" prefWidth="737.0" />
