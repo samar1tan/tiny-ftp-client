@@ -1,7 +1,5 @@
 package edu.ftp.client;
 
-import edu.ftp.client.FTPClient;
-import edu.ftp.client.FTPClientImpl;
 import edu.ftp.client.logging.StreamLogging;
 
 import java.lang.reflect.Constructor;

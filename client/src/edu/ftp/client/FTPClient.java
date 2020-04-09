@@ -8,10 +8,6 @@ import java.io.IOException;
  */
 public interface FTPClient {
 
-    void setMode(DataSocket.MODE mode);
-
-    void setKeepAliveInterval(long mSeconds);
-
     int getStatusCode();
 
     String getMessage();

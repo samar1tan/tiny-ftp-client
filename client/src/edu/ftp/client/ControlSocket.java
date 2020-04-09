@@ -23,12 +23,10 @@ public class ControlSocket implements StreamLogging {
     private String remoteAddr;
 
     private final ScheduledThreadPoolExecutor threadPool =
-            (ScheduledThreadPoolExecutor) Executors.newScheduledThreadPool(1);
-    private volatile long keepAliveInterval = 30000;
+        (ScheduledThreadPoolExecutor) Executors.newScheduledThreadPool(1);
     private volatile long lastExecution = Calendar.getInstance().getTimeInMillis();
 
     private DataSocket dataSocket;
-    private DataSocket.MODE mode = DataSocket.MODE.PASV;
 
     /**
      * Connect to control port of FTP server. Note that {@link #reader}
@@ -41,26 +39,28 @@ public class ControlSocket implements StreamLogging {
     public ControlSocket(String addr, int port) throws IOException {
         controlSocket = new Socket(addr, port);
         reader = new BufferedReader(new InputStreamReader(
-                controlSocket.getInputStream(), StandardCharsets.UTF_8));
+            controlSocket.getInputStream(), StandardCharsets.UTF_8));
         writer = new BufferedWriter(new OutputStreamWriter(
-                controlSocket.getOutputStream(), StandardCharsets.UTF_8));
+            controlSocket.getOutputStream(), StandardCharsets.UTF_8));
         parseResponse("CONN");
         remoteAddr = addr;
         threadPool.scheduleWithFixedDelay(() -> {
-            if (Calendar.getInstance().getTimeInMillis() - lastExecution > keepAliveInterval) {
-                logger.info("Sending keep-alive");
-                try {
-                    execute("NOOP");
-                } catch (IOException e) {
-                    logger.severe(e.getMessage());
+                if (Calendar.getInstance().getTimeInMillis() - lastExecution
+                        > Configuration.ControlSocketConf.sendKeepAliveInterval) {
+                    logger.info("Sending keep-alive");
+                    try {
+                        execute("NOOP");
+                    } catch (IOException e) {
+                        logger.severe(e.getMessage());
+                    }
                 }
-            }
-        }, 1, 5, TimeUnit.SECONDS);
+            }, Configuration.ControlSocketConf.checkKeepAliveInterval,
+            Configuration.ControlSocketConf.checkKeepAliveInterval, TimeUnit.MILLISECONDS);
     }
 
     public DataSocket getDataSocket() throws IOException {
         Socket dataSocket;
-        if (mode == DataSocket.MODE.PASV) {
+        if (Configuration.DataSocketConf.mode == DataSocket.MODE.PASV) {
             execute("PASV");
             String[] ret = getMessage().split("[(|)]")[1].split(",");
             int p1 = Integer.parseInt(ret[4]);
@@ -70,7 +70,7 @@ public class ControlSocket implements StreamLogging {
         } else {
             int port;
             ServerSocket activeSocket;
-            if (mode == DataSocket.MODE.PORT_STRICT) {
+            if (Configuration.DataSocketConf.mode == DataSocket.MODE.PORT_STRICT) {
                 port = controlSocket.getLocalPort() + 1;
                 activeSocket = new ServerSocket(port);
             } else {
@@ -80,15 +80,15 @@ public class ControlSocket implements StreamLogging {
             int p1 = port / 256;
             int p2 = port % 256;
             execute(String.format("PORT %s,%d,%d",
-                    controlSocket.getLocalAddress().getHostAddress()
-                            .replace('.', ','), p1, p2));
+                controlSocket.getLocalAddress().getHostAddress()
+                    .replace('.', ','), p1, p2));
             try {
                 dataSocket = activeSocket.accept();
             } finally {
                 activeSocket.close();
             }
         }
-        logger.info(mode + " data socket created");
+        logger.info(Configuration.DataSocketConf.mode + " data socket created");
         return new DataSocket(dataSocket);
     }
 
@@ -116,7 +116,7 @@ public class ControlSocket implements StreamLogging {
      * @throws IOException .
      */
     public synchronized DataSocket execute(String command, boolean needSocket)
-            throws IOException {
+        throws IOException {
         waitForDataSocketClosure();
         lastExecution = Calendar.getInstance().getTimeInMillis();
         if (needSocket) {
@@ -135,7 +135,7 @@ public class ControlSocket implements StreamLogging {
             synchronized (this) {
                 if (this.dataSocket.isClosed()) {
                     try {
-                        logger.info(mode + " data socket closed");
+                        logger.info(Configuration.DataSocketConf.mode + " data socket closed");
                         parseResponse(command);
                     } catch (IOException e) {
                         logger.severe(e.getMessage());
@@ -186,24 +186,6 @@ public class ControlSocket implements StreamLogging {
         message = messageBuilder.toString();
     }
 
-    /**
-     * Set keep alive interval for control socket. Typically, server
-     * will disconnect client if the socket remains idle for a period
-     * of time. In order to avoid that, control socket will send a
-     * dummy packet to server once in a while to stay active.
-     *
-     * @param keepAliveInterval the client will send a dummy packet
-     *                          when control socket remain idle for
-     *                          {@code keepAliveInterval}
-     */
-    public void setKeepAliveInterval(long keepAliveInterval) {
-        this.keepAliveInterval = keepAliveInterval;
-    }
-
-    public void setMode(DataSocket.MODE mode) {
-        this.mode = mode;
-    }
-
     public int getStatusCode() {
         checkDataSocketState();
         return statusCode;
@@ -214,7 +196,7 @@ public class ControlSocket implements StreamLogging {
         return message;
     }
 
-    public void close() throws IOException {
+    void close() throws IOException {
         threadPool.shutdownNow();
         logger.info("Waiting for the death of keep-alive thread");
         while (!threadPool.isTerminated()) ;

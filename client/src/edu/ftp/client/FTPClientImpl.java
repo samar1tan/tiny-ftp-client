@@ -13,6 +13,10 @@ import java.io.IOException;
  * @see SimpleFTPClientHandler
  */
 public class FTPClientImpl implements FTPClient, StreamLogging {
+    @SuppressWarnings("FieldCanBeLocal")
+    private String username;
+    @SuppressWarnings("FieldCanBeLocal")
+    private String password;
     private String remoteDir = "/";
     private ControlSocket controlSocket;
 
@@ -44,6 +48,8 @@ public class FTPClientImpl implements FTPClient, StreamLogging {
     public Boolean login(String user, String pass) throws IOException {
         controlSocket.execute("USER " + user);
         controlSocket.execute("PASS " + pass);
+        username = user;
+        password = pass;
         return controlSocket.getStatusCode() == 230;
     }
 
@@ -61,31 +67,6 @@ public class FTPClientImpl implements FTPClient, StreamLogging {
             return false;
         controlSocket.close();
         return true;
-    }
-
-    /**
-     * Set mode for underlying {@link DataSocket}.
-     *
-     * @param mode mode for {@link DataSocket}
-     * @see DataSocket.MODE
-     */
-    @Override
-    public void setMode(DataSocket.MODE mode) {
-        controlSocket.setMode(mode);
-    }
-
-    /**
-     * Set keep alive interval for control socket. Typically, server
-     * will disconnect client if the socket remains idle for a period
-     * of time. In order to avoid that, the client will send a dummy
-     * packet to server once in a while to stay active.
-     *
-     * @param mSeconds the client will send a dummy packet when
-     *                 control socket remain idle for {@code mSeconds}
-     */
-    @Override
-    public void setKeepAliveInterval(long mSeconds) {
-        controlSocket.setKeepAliveInterval(mSeconds);
     }
 
     @Override
@@ -246,7 +227,7 @@ public class FTPClientImpl implements FTPClient, StreamLogging {
         StreamLogging.addLogPublisher(System.out::println);
         // this is not a singleton
         FTPClient ftp = FTPClientFactory
-                .newMultiThreadFTPClient("192.168.31.94", 21,3);
+                .newMultiThreadFTPClient("192.168.31.94", 21);
         ftp.login("anonymous", "");
         ftp.rename("a", "abc");
         ftp.getWorkingDirectory();
@@ -256,7 +237,7 @@ public class FTPClientImpl implements FTPClient, StreamLogging {
         for (int i = 0; i < 10; i++)
             ftp.download("");
         ftp.changeWorkingDirectory("b");
-        Thread.sleep(10000);
+        Thread.sleep(50000);
         ftp.help();
         ftp.quit();
     }

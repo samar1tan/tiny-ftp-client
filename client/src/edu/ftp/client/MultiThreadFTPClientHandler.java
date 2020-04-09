@@ -3,9 +3,7 @@ package edu.ftp.client;
 import edu.ftp.client.logging.StreamLogging;
 
 import java.io.IOException;
-import java.lang.reflect.Constructor;
-import java.lang.reflect.InvocationHandler;
-import java.lang.reflect.Method;
+import java.lang.reflect.*;
 import java.util.concurrent.*;
 
 /**
@@ -13,16 +11,29 @@ import java.util.concurrent.*;
  */
 public class MultiThreadFTPClientHandler implements InvocationHandler, StreamLogging {
     private FTPClient master;
-    private FTPClientPool ftpClientPool;
-    private final ExecutorService threadPool = Executors.newCachedThreadPool();
+    private FTPConnectionPool ftpConnectionPool;
+    private final ThreadPoolExecutor threadPool = new ThreadPoolExecutor(
+        Configuration.ExecutorPoolConf.corePoolSize,
+        Configuration.ExecutorPoolConf.maxPoolSize,
+        Configuration.ExecutorPoolConf.threadKeepAliveTime,
+        TimeUnit.MILLISECONDS, new SynchronousQueue<>());
+
+    // login credential source
+    private Field user;
+    private Field pass;
 
     public MultiThreadFTPClientHandler(Class<FTPClientImpl> cls, String addr, int port, int poolSize)
-            throws ReflectiveOperationException {
+        throws ReflectiveOperationException {
         if (poolSize < 2)
             throw new IllegalArgumentException("Pool size should be greater than 1");
         FTPClientBuilder.initialize(cls, addr, port);
         master = FTPClientBuilder.newInstance();
-        ftpClientPool = new FTPClientPool(poolSize - 1);
+        ftpConnectionPool = new FTPConnectionPool(poolSize - 1);
+        // login credential source for other thread
+        user = master.getClass().getDeclaredField("username");
+        pass = master.getClass().getDeclaredField("password");
+        user.setAccessible(true);
+        pass.setAccessible(true);
     }
 
     static class FTPClientBuilder {
@@ -51,9 +62,10 @@ public class MultiThreadFTPClientHandler implements InvocationHandler, StreamLog
                 threadPool.shutdownNow();
                 while (!threadPool.isTerminated()) ;
                 logger.info("Thread pool shut down");
-                ftpClientPool.shutThreadPoolNow();
-                logger.info("ftp client thread shut down");
+                ftpConnectionPool.shutThreadPoolNow();
+                logger.info("ftp client thread pool shut down");
                 master.quit();
+                logger.info("master client shut down");
                 return null;
             }
         } catch (NoSuchMethodException | IOException e) {
@@ -65,19 +77,22 @@ public class MultiThreadFTPClientHandler implements InvocationHandler, StreamLog
                 logger.info("Entering spare thread");
                 FTPClient ftpClient = null;
                 try {
-                    ftpClient = ftpClientPool.takeOrGenerate();
+                    ftpClient = ftpConnectionPool.takeOrGenerate();
+                    ftpClient.login((String) user.get(master), (String) pass.get(master));
                     ftpClient.changeWorkingDirectory(master.getWorkingDirectory());
                     method.invoke(ftpClient, objects);
                 } catch (NullPointerException ignored) {
-                    logger.warning("Failed to obtain ftp client");
-                } catch (IOException | InterruptedException e) {
+                    logger.warning("Failed to obtain ftp connection");
+                } catch (IOException | IllegalAccessException e) {
                     logger.severe(e.getMessage());
-                } catch (ReflectiveOperationException e) {
+                } catch (InvocationTargetException e) {
                     logger.severe(e.getCause().getMessage());
+                } catch (InterruptedException e) {
+                    logger.warning("Time out for obtaining connection");
                 } finally {
                     if (ftpClient != null) {
                         try {
-                            ftpClientPool.put(ftpClient);
+                            ftpConnectionPool.put(ftpClient);
                         } catch (InterruptedException e) {
                             logger.severe(e.getMessage());
                         }

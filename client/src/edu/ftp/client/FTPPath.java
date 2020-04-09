@@ -70,7 +70,7 @@ public class FTPPath implements StreamLogging {
 
     @Override
     public String toString() {
-        return "com.ftp.client.FTPPath{" +
+        return "FTPPath{" +
                 "isDirectory=" + isDirectory +
                 ", readable=" + readable +
                 ", writable=" + writable +

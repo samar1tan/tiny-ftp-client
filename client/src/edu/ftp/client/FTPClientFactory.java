@@ -23,7 +23,8 @@ public class FTPClientFactory {
 
     public static FTPClient newMultiThreadFTPClient(String addr, int port)
             throws ReflectiveOperationException {
-        return newMultiThreadFTPClient(addr, port, 3);
+        return newMultiThreadFTPClient(addr, port,
+                Configuration.FTPConnectionPoolConf.defaultPoolSize);
     }
 
     public static FTPClient newMultiThreadFTPClient(String addr, int port, int poolSize)
