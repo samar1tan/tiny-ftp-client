@@ -63,16 +63,19 @@ public class FTPConnectionPool extends LinkedBlockingQueue<FTPClient>
         return result;
     }
 
-    public void shutThreadPoolNow() {
+    public boolean shutThreadPoolNow() {
         threadPool.shutdownNow();
         while (!threadPool.isTerminated()) ;
+        boolean successShutDown = true;
         for (FTPClient ftpClient : this) {
             try {
                 ftpClient.quit();
             } catch (IOException e) {
-                e.printStackTrace();
+                successShutDown = false;
+                logger.warning(e.getMessage());
             }
             logger.info(String.format("Killing thread: %d/%d", initialized.decrementAndGet(), capacity));
         }
+        return successShutDown;
     }
 }

@@ -219,4 +219,24 @@ public class FTPClientImpl implements FTPClient, StreamLogging {
     public void help() throws IOException {
         controlSocket.execute("HELP");
     }
+
+    public static void main(String[] args) throws Exception {
+        // log to console
+        StreamLogging.addLogPublisher(System.out::println);
+        // this is not a singleton
+        FTPClient ftp = FTPClientFactory
+                            .newMultiThreadFTPClient("192.168.31.94", 21);
+        ftp.login("anonymous", "");
+        ftp.rename("a", "abc");
+        ftp.getWorkingDirectory();
+        for (FTPPath f : ftp.list("/")) {
+            System.out.println(f);
+        }
+        for (int i = 0; i < 10; i++)
+            ftp.download("");
+        ftp.changeWorkingDirectory("b");
+        Thread.sleep(50000);
+        ftp.help();
+        ftp.quit();
+    }
 }

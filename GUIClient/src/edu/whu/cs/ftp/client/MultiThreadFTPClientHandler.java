@@ -60,15 +60,17 @@ public class MultiThreadFTPClientHandler implements InvocationHandler, StreamLog
                 threadPool.shutdownNow();
                 while (!threadPool.isTerminated()) ;
                 logger.info("Thread pool shut down");
-                ftpConnectionPool.shutThreadPoolNow();
+                if (!ftpConnectionPool.shutThreadPoolNow())
+                    return false;
                 logger.info("ftp client thread pool shut down");
-                master.quit();
+                if (!master.quit())
+                    return false;
                 logger.info("master client shut down");
-                return null;
+                return true;
             }
         } catch (NoSuchMethodException | IOException e) {
             logger.severe(e.getMessage());
-            return null;
+            return false;
         }
         if (method.isAnnotationPresent(NeedSpareThread.class)) {
             threadPool.execute(() -> {
