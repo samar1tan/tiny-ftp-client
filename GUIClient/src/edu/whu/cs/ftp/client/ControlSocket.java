@@ -10,10 +10,10 @@ import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
 /**
- * Control Socket for FTP Client.
+ * Control Socket for FTP Client. Support multi-threading.
  */
 public class ControlSocket implements StreamLogging {
-    private Socket controlSocket;
+    private final Socket controlSocket;
     private BufferedReader reader;
     private BufferedWriter writer;
     private int statusCode;
@@ -21,10 +21,11 @@ public class ControlSocket implements StreamLogging {
     private String remoteAddr;
 
     private final ScheduledThreadPoolExecutor threadPool =
-        (ScheduledThreadPoolExecutor) Executors.newScheduledThreadPool(1);
+            (ScheduledThreadPoolExecutor) Executors.newScheduledThreadPool(1);
     private volatile long lastExecution = Calendar.getInstance().getTimeInMillis();
 
     private DataSocket dataSocket;
+    private ServerSocket activeSocket;
 
     /**
      * Connect to control port of FTP server. Note that {@link #reader}
@@ -37,37 +38,37 @@ public class ControlSocket implements StreamLogging {
     public ControlSocket(String addr, int port) throws IOException {
         controlSocket = new Socket(addr, port);
         reader = new BufferedReader(new InputStreamReader(
-            controlSocket.getInputStream(), StandardCharsets.UTF_8));
+                controlSocket.getInputStream(), StandardCharsets.UTF_8));
         writer = new BufferedWriter(new OutputStreamWriter(
-            controlSocket.getOutputStream(), StandardCharsets.UTF_8));
+                controlSocket.getOutputStream(), StandardCharsets.UTF_8));
         parseResponse("CONN");
         remoteAddr = addr;
         threadPool.scheduleWithFixedDelay(() -> {
-                if (Calendar.getInstance().getTimeInMillis() - lastExecution
-                        > Configuration.ControlSocketConf.sendKeepAliveInterval) {
-                    logger.info("Sending keep-alive");
-                    try {
-                        execute("NOOP");
-                    } catch (IOException e) {
-                        logger.severe(e.getMessage());
+                    if (Calendar.getInstance().getTimeInMillis() - lastExecution
+                            > Configuration.ControlSocketConf.sendKeepAliveInterval) {
+                        logger.info("Sending keep-alive");
+                        try {
+                            execute("NOOP");
+                        } catch (IOException e) {
+                            logger.severe(e.getMessage());
+                        }
                     }
-                }
-            }, Configuration.ControlSocketConf.checkKeepAliveInterval,
-            Configuration.ControlSocketConf.checkKeepAliveInterval, TimeUnit.MILLISECONDS);
+                }, Configuration.ControlSocketConf.checkKeepAliveInterval,
+                Configuration.ControlSocketConf.checkKeepAliveInterval, TimeUnit.MILLISECONDS);
     }
 
     public DataSocket getDataSocket() throws IOException {
-        Socket dataSocket;
         if (Configuration.DataSocketConf.mode == DataSocket.MODE.PASV) {
             execute("PASV");
             String[] ret = getMessage().split("[(|)]")[1].split(",");
             int p1 = Integer.parseInt(ret[4]);
             int p2 = Integer.parseInt(ret[5]);
             int port = p1 * 256 + p2;
-            dataSocket = new Socket(remoteAddr, port);
+            Socket dataSocket = new Socket(remoteAddr, port);
+            logger.info(Configuration.DataSocketConf.mode + " data socket created");
+            return new DataSocket(dataSocket);
         } else {
             int port;
-            ServerSocket activeSocket;
             if (Configuration.DataSocketConf.mode == DataSocket.MODE.PORT_STRICT) {
                 port = controlSocket.getLocalPort() + 1;
                 activeSocket = new ServerSocket(port);
@@ -78,16 +79,21 @@ public class ControlSocket implements StreamLogging {
             int p1 = port / 256;
             int p2 = port % 256;
             execute(String.format("PORT %s,%d,%d",
-                controlSocket.getLocalAddress().getHostAddress()
-                    .replace('.', ','), p1, p2));
-            try {
-                dataSocket = activeSocket.accept();
-            } finally {
-                activeSocket.close();
-            }
+                    controlSocket.getLocalAddress().getHostAddress()
+                            .replace('.', ','), p1, p2));
+            return null;
         }
-        logger.info(Configuration.DataSocketConf.mode + " data socket created");
-        return new DataSocket(dataSocket);
+    }
+
+    private DataSocket waitUilAccept() throws IOException {
+        Socket socket = null;
+        try {
+            socket = activeSocket.accept();
+            logger.info(Configuration.DataSocketConf.mode + " data socket created");
+        } finally {
+            activeSocket.close();
+        }
+        return new DataSocket(socket);
     }
 
     /**
@@ -99,7 +105,7 @@ public class ControlSocket implements StreamLogging {
      * @throws IOException .
      */
     public void execute(String command) throws IOException {
-        execute(command, false);
+        execute(command, 0);
     }
 
     /**
@@ -107,25 +113,36 @@ public class ControlSocket implements StreamLogging {
      * and response, try {@link #getStatusCode()} and
      * {@link #getMessage()}.
      *
-     * @param command    FTP command which needs data socket
-     * @param needSocket whether need a {@link DataSocket} for
-     *                   data transfer
+     * @param command         FTP command which needs data socket
+     * @param validStatusCode Used to identify whether data socket is created.
+     *                        When working in PORT mode, the server only tries
+     *                        to connect if FTP command gets positive response.
+     *                        Therefore, a valid StatusCode must be provided
+     *                        in order to tell whether client should wait for
+     *                        the server to make the connection. Typically
+     *                        it's 150, but may vary between commands.
      * @return {@link DataSocket} for data transfer
      * @throws IOException .
      */
-    public synchronized DataSocket execute(String command, boolean needSocket)
-        throws IOException {
+    public synchronized DataSocket execute(String command, int validStatusCode)
+            throws IOException {
         waitForDataSocketClosure();
         lastExecution = Calendar.getInstance().getTimeInMillis();
-        if (needSocket) {
+        if (validStatusCode > 0)
             dataSocket = getDataSocket();
-            new Thread(() -> parseAfterTransfer(command)).start();
-        }
         writer.write(command);
         writer.write("\r\n");
         writer.flush();
         parseResponse(command);
-        return needSocket ? dataSocket : null;
+        if (validStatusCode > 0) {
+            if (validStatusCode == statusCode) {
+                dataSocket = waitUilAccept();
+                new Thread(() -> parseAfterTransfer(command)).start();
+            } else {
+                activeSocket.close();
+            }
+        }
+        return dataSocket;
     }
 
     private void parseAfterTransfer(String command) {

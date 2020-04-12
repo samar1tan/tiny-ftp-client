@@ -4,14 +4,15 @@ import edu.whu.cs.ftp.client.DataSocket.MODE;
 
 public class Configuration {
     public static class ExecutorPoolConf{
-        public static volatile int corePoolSize = 1;
+        public static volatile int corePoolSize = 0;
         public static volatile int maxPoolSize = 10;
         public static volatile long threadKeepAliveTime = 30000;//30s
     }
 
     public static class FTPConnectionPoolConf {
         public static volatile int defaultPoolSize = 10;
-        public static volatile long pollTimeOut = 60000;//60s
+        public static volatile long directPollTimeOut = 1000;//1s
+        public static volatile long pendingPollTimeOut = 20000;//20s
         public static volatile long shrinkInterval = 20000;//20s
     }
 

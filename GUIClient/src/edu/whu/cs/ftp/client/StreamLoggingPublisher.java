@@ -1,7 +1,7 @@
 package edu.whu.cs.ftp.client;
 
 /**
- * Interface for {@link StreamLoggingHandler}
+ * Interface for publishing {@link StreamLogging}
  * @see StreamLogging
  */
 @FunctionalInterface

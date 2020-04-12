@@ -4,6 +4,7 @@ import java.io.OutputStream;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
+import java.util.Date;
 import java.util.logging.*;
 
 /**
@@ -12,13 +13,13 @@ import java.util.logging.*;
  */
 public interface StreamLogging {
     Logger logger = Logger.getLogger("FTP");
-    DateFormat dateFormatter = new SimpleDateFormat("YYYY-MM-DD HH:mm:ss");
+    DateFormat dateFormatter = new SimpleDateFormat("YYYY-MM-dd HH:mm:ss");
     Formatter logFormatter = new Formatter() {
         @Override
         public String format(LogRecord record) {
             String[] sourceClass = record.getSourceClassName().split("\\.");
             return String.format("%s [%s] <%s@%d> %s",
-                    dateFormatter.format(Calendar.getInstance().getTime()),
+                    dateFormatter.format(new Date(record.getMillis())),
                     record.getLevel(),
                     sourceClass[sourceClass.length - 1],
                     record.getThreadID(),
@@ -49,29 +50,28 @@ public interface StreamLogging {
      */
     static void addLogPublisher(StreamLoggingPublisher streamLoggingPublisher) {
         logger.setUseParentHandlers(false);
-        logger.addHandler(new StreamLoggingHandler() {
+        logger.addHandler(new Handler() {
             @Override
             public void publish(LogRecord logRecord) {
                 streamLoggingPublisher.publish(logFormatter.format(logRecord));
             }
+
+            @Override
+            public void flush() {}
+
+            @Override
+            public void close() throws SecurityException {}
         });
     }
 
     /**
      * Add {@link Handler} implementations for interface.
+     *
      * @param stream .
      */
-    static void addLogStream(OutputStream stream){
+    static void addLogStream(OutputStream stream) {
         logger.setUseParentHandlers(false);
         logger.addHandler(new StreamHandler(stream, logFormatter));
     }
-}
-
-abstract class StreamLoggingHandler extends Handler {
-    @Override
-    public void flush() {}
-
-    @Override
-    public void close() throws SecurityException {}
 }
 

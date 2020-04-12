@@ -6,35 +6,36 @@ import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class FTPConnectionPool extends LinkedBlockingQueue<FTPClient>
-    implements StreamLogging {
+        implements StreamLogging {
     private final int capacity;
+    private final AtomicInteger count = new AtomicInteger(0);
     private final AtomicInteger initialized = new AtomicInteger(0);
     private final ScheduledThreadPoolExecutor threadPool =
-        (ScheduledThreadPoolExecutor) Executors.newScheduledThreadPool(1);
+            (ScheduledThreadPoolExecutor) Executors.newScheduledThreadPool(1);
 
     public FTPConnectionPool(int capacity) {
         super(capacity);
         this.capacity = capacity;
         threadPool.scheduleWithFixedDelay(() -> {
-                while (initialized.get() > 1 && 2 * size() > initialized.get()) {
-                    try {
-                        Objects.requireNonNull(poll(
-                            Configuration.FTPConnectionPoolConf.pollTimeOut,
-                            TimeUnit.MILLISECONDS)).quit();
-                        initialized.getAndDecrement();
-                        logger.info(String.format("Shrinking ftp client pool: %d/%d",
-                            initialized.get(), capacity));
-                    } catch (NullPointerException ignored) {
-                    } catch (InterruptedException e) {
-                        logger.warning(e.getMessage());
-                        break;
-                    } catch (IOException e) {
-                        logger.warning(e.getCause().getMessage());
+                    while (initialized.get() > 1 && 2 * size() > initialized.get()) {
+                        try {
+                            Objects.requireNonNull(poll(
+                                    Configuration.FTPConnectionPoolConf.directPollTimeOut,
+                                    TimeUnit.MILLISECONDS)).quit();
+                            initialized.getAndDecrement();
+                            logger.info(String.format("Shrinking ftp client pool: %d/%d",
+                                    initialized.get(), capacity));
+                        } catch (NullPointerException ignored) {
+                        } catch (InterruptedException e) {
+                            logger.warning(e.getMessage());
+                            break;
+                        } catch (IOException e) {
+                            logger.warning(e.getCause().getMessage());
+                        }
                     }
-                }
-            },
-            Configuration.FTPConnectionPoolConf.shrinkInterval,
-            Configuration.FTPConnectionPoolConf.shrinkInterval, TimeUnit.MILLISECONDS);
+                },
+                Configuration.FTPConnectionPoolConf.shrinkInterval,
+                Configuration.FTPConnectionPoolConf.shrinkInterval, TimeUnit.MILLISECONDS);
     }
 
     /**
@@ -47,18 +48,23 @@ public class FTPConnectionPool extends LinkedBlockingQueue<FTPClient>
     public FTPClient takeOrGenerate() throws InterruptedException {
         FTPClient result = null;
         int clientCnt = 0;
-        if (size() > 0) {
-            result = poll(Configuration.FTPConnectionPoolConf.pollTimeOut, TimeUnit.MILLISECONDS);
-        } else if ((clientCnt = initialized.getAndIncrement()) < capacity) {
+        synchronized (this) {
+            if (size() > 0 && (result = poll(
+                    Configuration.FTPConnectionPoolConf.directPollTimeOut,
+                    TimeUnit.MILLISECONDS)) != null)
+                return result;
+        }
+        if ((clientCnt = initialized.getAndIncrement()) < capacity) {
             try {
                 result = MultiThreadFTPClientHandler.FTPClientBuilder.newInstance();
-                logger.info(String.format("Generating new threads: %d/%d", clientCnt + 1, capacity));
+                logger.info(String.format("Generating new connection: %d/%d", clientCnt + 1, capacity));
             } catch (ReflectiveOperationException e) {
                 initialized.getAndDecrement();
                 logger.warning(e.getCause().getMessage());
             }
         } else {
             initialized.getAndDecrement();
+            result = poll(Configuration.FTPConnectionPoolConf.pendingPollTimeOut, TimeUnit.MILLISECONDS);
         }
         return result;
     }
@@ -74,7 +80,7 @@ public class FTPConnectionPool extends LinkedBlockingQueue<FTPClient>
                 successShutDown = false;
                 logger.warning(e.getMessage());
             }
-            logger.info(String.format("Killing thread: %d/%d", initialized.decrementAndGet(), capacity));
+            logger.info(String.format("Killing connection: %d/%d", initialized.decrementAndGet(), capacity));
         }
         return successShutDown;
     }

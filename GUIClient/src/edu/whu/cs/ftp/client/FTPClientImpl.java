@@ -89,11 +89,8 @@ public class FTPClientImpl implements FTPClient, StreamLogging {
     @Override
     public String[] rawList(String dir) throws IOException {
         DataSocket dataSocket =
-                controlSocket.execute("LIST " + dir, true);
-        if (controlSocket.getStatusCode() / 100 != 1) {
-            dataSocket.close();
-            return null;
-        }
+            controlSocket.execute("LIST " + dir, 150);
+        if (dataSocket == null) return null;
         String[] ret = dataSocket.getTextResponse();
         return (controlSocket.getStatusCode() / 100 != 2) ? null : ret;
     }
@@ -125,13 +122,11 @@ public class FTPClientImpl implements FTPClient, StreamLogging {
     @Override
     public FTPPath[] list(String dir) throws IOException {
         DataSocket dataSocket =
-                controlSocket.execute("MLSD " + dir, true);
-        if (controlSocket.getStatusCode() != 150) {
-            dataSocket.close();
+            controlSocket.execute("MLSD " + dir, 150);
+        if (dataSocket == null)
             return null;
-        }
         FTPPath[] paths = FTPPath.parseFromMLSD(
-                dir, dataSocket.getTextResponse());
+            dir, dataSocket.getTextResponse());
         if (controlSocket.getStatusCode() != 226)
             return null;
         String[] res = rawList(dir);
@@ -160,8 +155,8 @@ public class FTPClientImpl implements FTPClient, StreamLogging {
     public String getWorkingDirectory() throws IOException {
         controlSocket.execute("PWD");
         return controlSocket.getStatusCode() == 257
-                ? (remoteDir = controlSocket.getMessage().split("\"")[1])
-                : null;
+                   ? (remoteDir = controlSocket.getMessage().split("\"")[1])
+                   : null;
     }
 
     /**
@@ -183,12 +178,30 @@ public class FTPClientImpl implements FTPClient, StreamLogging {
 
     @Override
     public Boolean deleteFile(String path) throws IOException {
+        logger.info("Deleting " + path);
         controlSocket.execute("DELE " + path);
         return controlSocket.getStatusCode() == 250;
     }
 
+    /**
+     * Remove directory recursively.
+     * @param path directory path.
+     * @return whether successful
+     * @throws IOException .
+     */
     @Override
     public Boolean removeDirectory(String path) throws IOException {
+        FTPPath[] paths = list(path);
+        if (paths == null) return false;
+        if (paths.length != 0) {
+            for (FTPPath ftpPath : paths) {
+                String absolutePath = ftpPath.getPath();
+                if (ftpPath.isDirectory()
+                        ? !removeDirectory(absolutePath)
+                        : !deleteFile(absolutePath))
+                    logger.warning("Failed to delete " + absolutePath);
+            }
+        }
         controlSocket.execute("RMD " + path);
         return controlSocket.getStatusCode() == 250;
     }
@@ -206,13 +219,13 @@ public class FTPClientImpl implements FTPClient, StreamLogging {
 
     @Override
     public void download(String path) {
-        logger.info("DOWNLOADING");
+        logger.info("-------- DOWNLOADING --------");
         try {
             Thread.sleep(5000);
         } catch (InterruptedException e) {
             logger.warning("INTERRUPTED");
         }
-        logger.info("DOWNLOAD COMPLETE");
+        logger.info("----- DOWNLOAD COMPLETE -----");
     }
 
     @Override
@@ -223,20 +236,19 @@ public class FTPClientImpl implements FTPClient, StreamLogging {
     public static void main(String[] args) throws Exception {
         // log to console
         StreamLogging.addLogPublisher(System.out::println);
+        Configuration.DataSocketConf.mode = DataSocket.MODE.PORT;
         // this is not a singleton
         FTPClient ftp = FTPClientFactory
                             .newMultiThreadFTPClient("192.168.31.94", 21);
         ftp.login("anonymous", "");
-        ftp.rename("a", "abc");
         ftp.getWorkingDirectory();
-        for (FTPPath f : ftp.list("/")) {
-            System.out.println(f);
-        }
-        for (int i = 0; i < 10; i++)
-            ftp.download("");
+        ftp.getWorkingDirectory();
+        ftp.rename("a", "abcd");
+        ftp.list("abs");
+        ftp.list("abc");
+        ftp.removeDirectory("abc");
+        ftp.removeDirectory("abs");
         ftp.changeWorkingDirectory("b");
-        Thread.sleep(50000);
-        ftp.help();
         ftp.quit();
     }
 }

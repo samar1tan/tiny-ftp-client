@@ -2,6 +2,7 @@ package edu.whu.cs.ftp.client;
 
 import java.io.IOException;
 import java.lang.reflect.*;
+import java.util.Objects;
 import java.util.concurrent.*;
 
 /**
@@ -16,6 +17,7 @@ public class MultiThreadFTPClientHandler implements InvocationHandler, StreamLog
         Configuration.ExecutorPoolConf.threadKeepAliveTime,
         TimeUnit.MILLISECONDS, new SynchronousQueue<>());
 
+    private Field remote;
     // login credential source
     private Field user;
     private Field pass;
@@ -30,8 +32,10 @@ public class MultiThreadFTPClientHandler implements InvocationHandler, StreamLog
         // login credential source for other thread
         user = master.getClass().getDeclaredField("username");
         pass = master.getClass().getDeclaredField("password");
+        remote = master.getClass().getDeclaredField("remoteDir");
         user.setAccessible(true);
         pass.setAccessible(true);
+        remote.setAccessible(true);
     }
 
     static class FTPClientBuilder {
@@ -73,33 +77,39 @@ public class MultiThreadFTPClientHandler implements InvocationHandler, StreamLog
             return false;
         }
         if (method.isAnnotationPresent(NeedSpareThread.class)) {
-            threadPool.execute(() -> {
-                logger.info("Entering spare thread");
-                FTPClient ftpClient = null;
-                try {
-                    ftpClient = ftpConnectionPool.takeOrGenerate();
-                    ftpClient.login((String) user.get(master), (String) pass.get(master));
-                    ftpClient.changeWorkingDirectory(master.getWorkingDirectory());
-                    method.invoke(ftpClient, objects);
-                } catch (NullPointerException ignored) {
-                    logger.warning("Failed to obtain ftp connection");
-                } catch (IOException | IllegalAccessException e) {
-                    logger.severe(e.getMessage());
-                } catch (InvocationTargetException e) {
-                    logger.severe(e.getCause().getMessage());
-                } catch (InterruptedException e) {
-                    logger.warning("Time out for obtaining connection");
-                } finally {
-                    if (ftpClient != null) {
-                        try {
-                            ftpConnectionPool.put(ftpClient);
-                        } catch (InterruptedException e) {
-                            logger.severe(e.getMessage());
+            try {
+                String remoteDir = (String) remote.get(master);;
+                String username = (String) user.get(master);
+                String password = (String) pass.get(master);
+                threadPool.execute(() -> {
+                    logger.info("Entering spare thread");
+                    FTPClient ftpClient = null;
+                    try {
+                        ftpClient = ftpConnectionPool.takeOrGenerate();
+                        ftpClient.login(username, password);
+                        ftpClient.changeWorkingDirectory(remoteDir);
+                        method.invoke(ftpClient, objects);
+                    } catch (NullPointerException | InterruptedException e) {
+                        logger.warning("Failed to obtain ftp connection");
+                    } catch (IOException | IllegalAccessException e) {
+                        logger.severe(e.getMessage());
+                    } catch (InvocationTargetException e) {
+                        logger.severe(e.getCause().getMessage());
+                    } finally {
+                        if (ftpClient != null) {
+                            try {
+                                ftpConnectionPool.put(ftpClient);
+                            } catch (InterruptedException e) {
+                                logger.severe(e.getMessage());
+                            }
                         }
                     }
-                }
-                logger.info("Exiting spare thread");
-            });
+                    logger.info("Exiting spare thread");
+                });
+            }catch (NullPointerException | IllegalAccessException e){
+                logger.severe("Master connection failed");
+            }
+
         } else {
             try {
                 return method.invoke(master, objects);

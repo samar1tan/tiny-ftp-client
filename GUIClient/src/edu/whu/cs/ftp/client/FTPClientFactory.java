@@ -11,6 +11,7 @@ public class FTPClientFactory {
      *
      * @param addr FTP server address
      * @param port FTP server port
+     * @throws ReflectiveOperationException .
      * @return {@link FTPClientImpl}
      */
     public static FTPClient newFTPClient(String addr, int port)
