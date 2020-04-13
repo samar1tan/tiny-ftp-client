@@ -236,7 +236,6 @@ public class FTPClientImpl implements FTPClient, StreamLogging {
     public static void main(String[] args) throws Exception {
         // log to console
         StreamLogging.addLogPublisher(System.out::println);
-        Configuration.DataSocketConf.mode = DataSocket.MODE.PORT;
         // this is not a singleton
         FTPClient ftp = FTPClientFactory
                             .newMultiThreadFTPClient("192.168.31.94", 21);

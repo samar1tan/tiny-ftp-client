@@ -57,7 +57,7 @@ public class ControlSocket implements StreamLogging {
                 Configuration.ControlSocketConf.checkKeepAliveInterval, TimeUnit.MILLISECONDS);
     }
 
-    public DataSocket getDataSocket() throws IOException {
+    private DataSocket getDataSocket() throws IOException {
         if (Configuration.DataSocketConf.mode == DataSocket.MODE.PASV) {
             execute("PASV");
             String[] ret = getMessage().split("[(|)]")[1].split(",");
@@ -81,6 +81,7 @@ public class ControlSocket implements StreamLogging {
             execute(String.format("PORT %s,%d,%d",
                     controlSocket.getLocalAddress().getHostAddress()
                             .replace('.', ','), p1, p2));
+            activeSocket.setSoTimeout(Configuration.ControlSocketConf.serverSocketTimeOut);
             return null;
         }
     }
@@ -135,7 +136,12 @@ public class ControlSocket implements StreamLogging {
         writer.flush();
         parseResponse(command);
         if (validStatusCode > 0) {
-            if (validStatusCode == statusCode) {
+            if (Configuration.DataSocketConf.mode == DataSocket.MODE.PASV) {
+                if (validStatusCode != statusCode) {
+                    dataSocket.close();
+                    dataSocket = null;
+                }
+            } else if (validStatusCode == statusCode) {
                 dataSocket = waitUilAccept();
                 new Thread(() -> parseAfterTransfer(command)).start();
             } else {
