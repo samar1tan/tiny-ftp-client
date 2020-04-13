@@ -60,6 +60,7 @@ public class ControlSocket implements StreamLogging {
     private DataSocket getDataSocket() throws IOException {
         if (Configuration.DataSocketConf.mode == DataSocket.MODE.PASV) {
             execute("PASV");
+            if (statusCode != 227) return null;
             String[] ret = getMessage().split("[(|)]")[1].split(",");
             int p1 = Integer.parseInt(ret[4]);
             int p2 = Integer.parseInt(ret[5]);
@@ -137,7 +138,7 @@ public class ControlSocket implements StreamLogging {
         parseResponse(command);
         if (validStatusCode > 0) {
             if (Configuration.DataSocketConf.mode == DataSocket.MODE.PASV) {
-                if (validStatusCode != statusCode) {
+                if (validStatusCode != statusCode && dataSocket != null) {
                     dataSocket.close();
                     dataSocket = null;
                 }

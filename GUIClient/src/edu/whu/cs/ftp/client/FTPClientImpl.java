@@ -89,7 +89,7 @@ public class FTPClientImpl implements FTPClient, StreamLogging {
     @Override
     public String[] rawList(String dir) throws IOException {
         DataSocket dataSocket =
-            controlSocket.execute("LIST " + dir, 150);
+                controlSocket.execute("LIST " + dir, 150);
         if (dataSocket == null) return null;
         String[] ret = dataSocket.getTextResponse();
         return (controlSocket.getStatusCode() / 100 != 2) ? null : ret;
@@ -122,11 +122,11 @@ public class FTPClientImpl implements FTPClient, StreamLogging {
     @Override
     public FTPPath[] list(String dir) throws IOException {
         DataSocket dataSocket =
-            controlSocket.execute("MLSD " + dir, 150);
+                controlSocket.execute("MLSD " + dir, 150);
         if (dataSocket == null)
             return null;
         FTPPath[] paths = FTPPath.parseFromMLSD(
-            dir, dataSocket.getTextResponse());
+                dir, dataSocket.getTextResponse());
         if (controlSocket.getStatusCode() != 226)
             return null;
         String[] res = rawList(dir);
@@ -155,8 +155,8 @@ public class FTPClientImpl implements FTPClient, StreamLogging {
     public String getWorkingDirectory() throws IOException {
         controlSocket.execute("PWD");
         return controlSocket.getStatusCode() == 257
-                   ? (remoteDir = controlSocket.getMessage().split("\"")[1])
-                   : null;
+                ? (remoteDir = controlSocket.getMessage().split("\"")[1])
+                : null;
     }
 
     /**
@@ -185,6 +185,7 @@ public class FTPClientImpl implements FTPClient, StreamLogging {
 
     /**
      * Remove directory recursively.
+     *
      * @param path directory path.
      * @return whether successful
      * @throws IOException .
@@ -238,7 +239,7 @@ public class FTPClientImpl implements FTPClient, StreamLogging {
         StreamLogging.addLogPublisher(System.out::println);
         // this is not a singleton
         FTPClient ftp = FTPClientFactory
-                            .newMultiThreadFTPClient("192.168.31.94", 21);
+                .newMultiThreadFTPClient("192.168.31.94", 21);
         ftp.login("anonymous", "");
         ftp.getWorkingDirectory();
         ftp.getWorkingDirectory();
