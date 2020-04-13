@@ -66,7 +66,6 @@ public class ControlSocket implements StreamLogging {
             int p2 = Integer.parseInt(ret[5]);
             int port = p1 * 256 + p2;
             Socket dataSocket = new Socket(remoteAddr, port);
-            logger.info(Configuration.DataSocketConf.mode + " data socket created");
             return new DataSocket(dataSocket);
         } else {
             int port;
@@ -139,14 +138,24 @@ public class ControlSocket implements StreamLogging {
         if (validStatusCode > 0) {
             if (Configuration.DataSocketConf.mode == DataSocket.MODE.PASV) {
                 if (validStatusCode != statusCode && dataSocket != null) {
+                    // pasv mode failed
                     dataSocket.close();
                     dataSocket = null;
+                    logger.warning("Failed to create data socket");
+                }else{
+                    // pasv mode succeed
+                    new Thread(() -> parseAfterTransfer(command)).start();
+                    logger.info("Data socket created");
                 }
             } else if (validStatusCode == statusCode) {
+                // port mode succeed
                 dataSocket = waitUilAccept();
                 new Thread(() -> parseAfterTransfer(command)).start();
+                logger.info("Data socket created");
             } else {
+                // port mode failed
                 activeSocket.close();
+                logger.warning("Failed to create data socket");
             }
         }
         return dataSocket;

@@ -1,6 +1,7 @@
 package edu.whu.cs.ftp.client;
 
 import java.io.IOException;
+import java.util.Arrays;
 
 /**
  * FTP client implementation for modern FTP servers. Implementations
@@ -241,14 +242,15 @@ public class FTPClientImpl implements FTPClient, StreamLogging {
         FTPClient ftp = FTPClientFactory
                 .newMultiThreadFTPClient("192.168.31.94", 21);
         ftp.login("anonymous", "");
+        //
         ftp.getWorkingDirectory();
         ftp.getWorkingDirectory();
-        ftp.rename("a", "abcd");
-        ftp.list("abs");
-        ftp.list("abc");
-        ftp.removeDirectory("abc");
-        ftp.removeDirectory("abs");
+//        ftp.rename("a", "abcd");
+        System.out.println(Arrays.toString(ftp.list("a.txt")));
+//        ftp.removeDirectory("abc");
+//        ftp.removeDirectory("abs");
         ftp.changeWorkingDirectory("b");
+        //
         ftp.quit();
     }
 }
