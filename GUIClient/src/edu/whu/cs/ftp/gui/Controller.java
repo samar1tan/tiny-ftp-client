@@ -21,6 +21,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.ResourceBundle;
 
 public class Controller implements Initializable, StreamLogging {
@@ -56,18 +57,47 @@ public class Controller implements Initializable, StreamLogging {
     public FTPClient ftp = null;              //ftp客户端
     public FTPPath[] paths = null;            //远程目录信息
     public FTPPath chosenServerFile_path = null;  //下载时，用户选择的远程文件或目录
-    public State stateInfo;                           //状态信息
+//    public State stateInfo;                           //状态信息
+
+    //打印状态信息
+//    public void printState(String localFile,String direction,String serverFile,String size,String state){
+//        Platform.runLater(new Runnable() {
+//            @Override
+//            public void run() {
+//                stateInfo.setLocalFile(localFile);
+//                stateInfo.setDirection(direction);
+//                stateInfo.setServerFile(serverFile);
+//                stateInfo.setSize(size);
+//                stateInfo.setState(state);
+//            }
+//        });
+//    }
+
+    public int indexState(State state) {
+        int i;
+
+        for(i=0;i<stateData.size();i++){
+            if(stateData.get(i).equals(state) && !stateData.get(i).getState().equals("完成") && !stateData.get(i).getState().equals("失败"))
+                break;
+        }
+        if(i == stateData.size())
+            return -1;
+        else
+            return i;
+    }
 
     //打印状态信息
     public void printState(String localFile,String direction,String serverFile,String size,String state){
         Platform.runLater(new Runnable() {
             @Override
             public void run() {
-                stateInfo.setLocalFile(localFile);
-                stateInfo.setDirection(direction);
-                stateInfo.setServerFile(serverFile);
-                stateInfo.setSize(size);
-                stateInfo.setState(state);
+                State stateInfo = new State(localFile,direction,serverFile,size,state);
+                int i = indexState(stateInfo);
+
+                if(i == -1)
+                    stateData.add(stateInfo);
+                else
+                    stateData.get(i).setState(state);
             }
         });
     }
@@ -172,8 +202,8 @@ public class Controller implements Initializable, StreamLogging {
         Button_Upload.setDisable(true);
         Button_Download.setDisable(true);
 
-        stateInfo = new State("","","","","");
-        stateData.add(stateInfo);
+//        stateInfo = new State("","","","","");
+//        stateData.add(stateInfo);
 
         File localFile = new File(chosenLocalFile_str);
         Path path = Paths.get(chosenLocalFile_str);
@@ -210,8 +240,8 @@ public class Controller implements Initializable, StreamLogging {
         Button_Upload.setDisable(true);
         Button_Download.setDisable(true);
 
-        stateInfo = new State("","","","","");
-        stateData.add(stateInfo);
+//        stateInfo = new State("","","","","");
+//        stateData.add(stateInfo);
 
         if(!chosenServerFile_path.isDirectory()){          //下载文件
             //文件下载
@@ -1088,6 +1118,19 @@ public class Controller implements Initializable, StreamLogging {
 
         public void setState(String state) {
             this.state.set(state==null?"":state);
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            State state = (State)o;
+
+            return this.getLocalFile().equals(state.getLocalFile()) && this.getDirection().equals(state.getDirection())
+                    && this.getServerFile().equals(state.getServerFile()) && this.getSize().equals(state.getSize());
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(getLocalFile(),getDirection(),getServerFile(),getSize());
         }
     }
 }
