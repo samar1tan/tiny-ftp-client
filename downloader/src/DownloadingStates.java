@@ -1,3 +1,6 @@
+import edu.whu.cs.ftp.client.FTPPath;
+
+// FIXME: zfk
 // logging database, key=path
 public class DownloadingStates {
     public DownloadingStates() {
