@@ -1,3 +1,5 @@
+package edu.whu.cs.ftp.downloader;
+
 import edu.whu.cs.ftp.client.FTPPath;
 
 // FIXME: zfk
