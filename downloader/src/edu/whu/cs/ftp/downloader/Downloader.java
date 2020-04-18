@@ -32,12 +32,15 @@ public class Downloader implements StreamLogging {
         checkRemoteFile(downloadFrom, fileInfo);
         checkLocalPath(saveTo, fileInfo);
 
+        DataSocket ftpDataSocket;
         if (fileInfo.downloadedByteNum > 0) {
-            setServerFileStartByte(fileInfo.downloadedByteNum);
+            // REST must be executed right before RETR
+            ftpDataSocket = execFTPCommand("RETR", fileInfo.serverFileName,
+                    "REST", String.valueOf(fileInfo.downloadedByteNum));
+        } else {
+            ftpDataSocket = (DataSocket) execFTPCommand("RETR", fileInfo.serverFileName, true);
         }
 
-        DataSocket ftpDataSocket = execFTPCommand("RETR", fileInfo.serverFileName, true);
-        assert ftpDataSocket != null;
         Socket dataSocket = ftpDataSocket.getDataSocket();
 
         File tempFilePath = new File(fileInfo.localFilePath + ".ftpdownloading");
@@ -63,10 +66,6 @@ public class Downloader implements StreamLogging {
     public void downloadDirectory(FTPPath serverPath, FTPPath savePath) throws DownloadException {
     }
 
-    private void setServerFileStartByte(long bytePointer) throws DownloadException, IOException {
-        execFTPCommand("REST", String.valueOf(bytePointer));
-    }
-
     private static String parseDirFromString(String fullPath, dirSeparator separator) {
         String[] parts = fullPath.split(String.valueOf(separator.getCodingSeparator()));
         StringBuilder dir = new StringBuilder();
@@ -85,34 +84,42 @@ public class Downloader implements StreamLogging {
         return parts[parts.length - 1];
     }
 
-    private String execFTPCommand(String cmd, String arg) throws DownloadException, IOException {
-        controlSocket.execute(cmd + ' ' + arg);
-        String statusMessage = controlSocket.getMessage();
-        int statusCode = Integer.parseInt(statusMessage.substring(0, 3));
-        if (statusCode != expectedStatusCodes.getStatusCode(cmd)) {
-            throw new FTPCommandFailedException(cmd, arg, statusMessage);
-        }
-        return statusMessage;
-    }
-
-    private DataSocket execFTPCommand(String cmd, String arg, boolean getDataSocket)
-            throws DownloadException, IOException {
-        DataSocket dataSocket;
+    // DataSocket / String message, depending on parameter getDataSocket
+    private Object execFTPCommand(String cmd, String arg, boolean getDataSocket) throws DownloadException, IOException {
+        String command = cmd + ' ' + arg;
         if (getDataSocket) {
-            dataSocket = controlSocket.execute(cmd + ' ' + arg, expectedStatusCodes.getStatusCode(cmd));
+            DataSocket dataSocket = controlSocket.execute(command, expectedStatusCodes.getStatusCode(cmd));
             if (dataSocket == null) {
                 throw new FTPCommandFailedException(cmd, arg, null);
             }
             return dataSocket;
         } else {
-            execFTPCommand(cmd, arg);
-            return null;
+            controlSocket.execute(command);
+            String statusMessage = controlSocket.getMessage();
+            int statusCode = Integer.parseInt(statusMessage.substring(0, 3));
+            if (statusCode != expectedStatusCodes.getStatusCode(cmd)) {
+                throw new FTPCommandFailedException(cmd, arg, statusMessage);
+            }
+            return statusMessage;
         }
+    }
+
+    // REST must be executed right before RETR, without PASV in between
+    private DataSocket execFTPCommand(String cmd, String arg, String preSimpleCmd, String preSimpleArg)
+            throws DownloadException, IOException {
+        String preSimpleCommand = preSimpleCmd + ' ' + preSimpleArg;
+        String command = cmd + ' ' + arg;
+        DataSocket dataSocket = controlSocket.execute(command, expectedStatusCodes.getStatusCode(cmd), preSimpleCommand);
+        if (dataSocket == null) {
+            throw new FTPCommandFailedException(cmd, arg, null);
+        }
+
+        return dataSocket;
     }
 
     private String execFTPCommand(String cmd, String arg, String groupedRegex, int regexGroupIndex)
             throws DownloadException, IOException {
-        String statusMessage = execFTPCommand(cmd, arg);
+        String statusMessage = (String) execFTPCommand(cmd, arg, false);
         Pattern pattern = Pattern.compile(groupedRegex);
         Matcher matcher = pattern.matcher(statusMessage);
         if (matcher.matches()) {

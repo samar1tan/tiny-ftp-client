@@ -12,7 +12,7 @@ import java.util.concurrent.TimeUnit;
 /**
  * Control Socket for FTP Client. Support multi-threading.
  */
-public class ControlSocket implements StreamLogging {
+public class ControlSocket implements edu.whu.cs.ftp.client.StreamLogging {
     private final Socket controlSocket;
     private BufferedReader reader;
     private BufferedWriter writer;
@@ -24,7 +24,7 @@ public class ControlSocket implements StreamLogging {
             (ScheduledThreadPoolExecutor) Executors.newScheduledThreadPool(1);
     private volatile long lastExecution = Calendar.getInstance().getTimeInMillis();
 
-    private DataSocket dataSocket;
+    private edu.whu.cs.ftp.client.DataSocket dataSocket;
     private ServerSocket activeSocket;
 
     /**
@@ -233,5 +233,50 @@ public class ControlSocket implements StreamLogging {
         while (!threadPool.isTerminated()) ;
         logger.info("Keep-alive thread died gracefully");
         controlSocket.close();
+    }
+
+    // added for zjz's downloader: REST must be executed right before RETR, not PASV in between
+    public synchronized DataSocket execute(String command, int validStatusCode, String preSimpleCommand)
+            throws IOException {
+        waitForDataSocketClosure();
+        lastExecution = Calendar.getInstance().getTimeInMillis();
+        if (validStatusCode > 0)
+            dataSocket = getDataSocket();
+
+        if (preSimpleCommand != null) {
+            writer.write(preSimpleCommand);
+            writer.write("\r\n");
+            writer.flush();
+            parseResponse(preSimpleCommand);
+        }
+
+        writer.write(command);
+        writer.write("\r\n");
+        writer.flush();
+        parseResponse(command);
+        if (validStatusCode > 0) {
+            if (Configuration.DataSocketConf.mode == DataSocket.MODE.PASV) {
+                if (validStatusCode != statusCode && dataSocket != null) {
+                    // pasv mode failed
+                    dataSocket.close();
+                    dataSocket = null;
+                    logger.warning("Failed to create data socket");
+                } else {
+                    // pasv mode succeed
+                    new Thread(() -> parseAfterTransfer(command)).start();
+                    logger.info("Data socket created");
+                }
+            } else if (validStatusCode == statusCode) {
+                // port mode succeed
+                dataSocket = waitUilAccept();
+                new Thread(() -> parseAfterTransfer(command)).start();
+                logger.info("Data socket created");
+            } else {
+                // port mode failed
+                activeSocket.close();
+                logger.warning("Failed to create data socket");
+            }
+        }
+        return dataSocket;
     }
 }
