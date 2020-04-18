@@ -1,6 +1,8 @@
 package edu.whu.cs.ftp.gui;
 
 import edu.whu.cs.ftp.client.*;
+
+import javafx.application.Platform;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
@@ -15,11 +17,13 @@ import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.*;
 import java.io.File;
+import java.io.IOException;
 import java.net.URL;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.ResourceBundle;
 
 public class Controller implements Initializable, StreamLogging {
@@ -51,20 +55,11 @@ public class Controller implements Initializable, StreamLogging {
     public String chosenServerDir_str = null;     //上传时，用户选择的远程目录
     public boolean isConnected = false;       //是否连接
     public String newDirName = null;          //新创建的目录名
-    public static ObservableList<State> stateData = FXCollections.observableArrayList();   //存放状态信息
+    public ObservableList<State> stateData = FXCollections.observableArrayList();   //存放状态信息
     public FTPClient ftp = null;              //ftp客户端
     public FTPPath[] paths = null;            //远程目录信息
     public FTPPath chosenServerFile_path = null;  //下载时，用户选择的远程文件或目录
-    public State stateInfo;                           //状态信息
-
-    //打印状态信息
-    public void printState(String localFile,String direction,String serverFile,String size,String state){
-        stateInfo.setLocalFile(localFile);
-        stateInfo.setDirection(direction);
-        stateInfo.setServerFile(serverFile);
-        stateInfo.setSize(size);
-        stateInfo.setState(state);
-    }
+    public int idNum = 0;
 
     //获得IP地址
     public void getIP(){
@@ -93,17 +88,16 @@ public class Controller implements Initializable, StreamLogging {
             getUserName();
             getPassword();
             getPort();
-            try {
-                ftp = FTPClientFactory.newMultiThreadFTPClient(ip_address,port,3);
-            } catch (Exception e) {
-                logger.warning("IP地址或端口号错误");
-                return;
+            if(ftp == null) {
+                try {
+                    ftp = FTPClientFactory.newMultiThreadFTPClient(ip_address, port);
+                } catch (Exception e) {
+                    logger.warning("IP地址或端口号错误");
+                    return;
+                }
             }
-            if(userName == null) {
-                logger.warning("用户名不能为空");
-                ftp = null;
-                return;
-            }
+            if(userName == null)
+                userName = "";
             if(password == null)
                 password = "";
             boolean b = false;
@@ -119,10 +113,13 @@ public class Controller implements Initializable, StreamLogging {
                     logger.info("连接成功");
                 isConnected = true;
                 Button_ConnectOrDisconnect.setText("退出");
+                TextField_LocalDir.setText(File.listRoots()[0].toString());
+                getLocalDir(0);
+                TextField_ServerDir.setText("/");
+                getServerDir(0);
             }
             else{
-                logger.info("登录失败");
-                ftp = null;
+                logger.info("用户名或密码错误");
             }
         }
         else{                         //进行退出操作
@@ -139,6 +136,10 @@ public class Controller implements Initializable, StreamLogging {
             isConnected = false;
             Button_ConnectOrDisconnect.setText("连接");
             ftp = null;
+            TextField_LocalDir.setText("");
+            TextField_ServerDir.setText("");
+            ListView_LocalDir.setItems(FXCollections.observableList(new ArrayList<>()));
+            ListView_ServerDir.setItems(FXCollections.observableList(new ArrayList<>()));
             logger.info("已退出");
         }
     }
@@ -160,17 +161,68 @@ public class Controller implements Initializable, StreamLogging {
         Button_Upload.setDisable(true);
         Button_Download.setDisable(true);
 
-        stateInfo = new State("","","","","");
-        stateData.add(stateInfo);
-
         File localFile = new File(chosenLocalFile_str);
         Path path = Paths.get(chosenLocalFile_str);
         if(localFile.isFile()){         //上传文件
-            //文件上传...
+            //文件上传
+            ftp.uploadFile(chosenLocalFile_str, chosenServerDir_str, new StatusPublisher() {
+                @Override
+                public int initialize(String localPath, String remotePath, DIRECTION direction, String size) {
+                    idNum++;
+                    String dire = (direction == DIRECTION.DOWNLOAD)? "<--":"-->";
+                    State stateInfo = new State(localPath,dire,remotePath,size,"");
+                    stateInfo.setId(idNum);
+                    stateData.add(stateInfo);
+                    return idNum;
+                }
+
+                @Override
+                public void publish(int id, String status) {
+                    int i;
+                    for(i=0;i<stateData.size();i++){
+                        if(stateData.get(i).getId() == id)
+                            break;
+                    }
+
+                    if(i != stateData.size()){
+                        if(status.equals("完成"))
+                            stateData.remove(i);
+                        else
+                            stateData.get(i).setState(status);
+                    }
+                }
+            });
             logger.info(chosenLocalFile_str + " 文件上传成功");
         }
         else{                           //上传目录
-            //目录上传...
+            //目录上传
+            ftp.uploadDirectory(chosenLocalFile_str, chosenServerDir_str, new StatusPublisher() {
+                @Override
+                public int initialize(String localPath, String remotePath, DIRECTION direction, String size) {
+                    idNum++;
+                    String dire = (direction == DIRECTION.DOWNLOAD)? "<--":"-->";
+                    State stateInfo = new State(localPath,dire,remotePath,size,"");
+                    stateInfo.setId(idNum);
+                    stateData.add(stateInfo);
+                    return idNum;
+                }
+
+                @Override
+                public void publish(int id, String status) {
+                    int i;
+                    for(i=0;i<stateData.size();i++){
+                        if(stateData.get(i).getId() == id)
+                            break;
+                    }
+
+                    if(i != stateData.size()){
+                        if(status.equals("完成"))
+                            stateData.remove(i);
+                        else
+                            stateData.get(i).setState(status);
+                    }
+                }
+            });
             logger.info(chosenLocalFile_str + " 目录上传成功");
         }
 
@@ -198,17 +250,66 @@ public class Controller implements Initializable, StreamLogging {
         Button_Upload.setDisable(true);
         Button_Download.setDisable(true);
 
-        stateInfo = new State("","","","","");
-        stateData.add(stateInfo);
-
         if(!chosenServerFile_path.isDirectory()){          //下载文件
             //文件下载
-            ftp.download(chosenServerFile_str);
+            ftp.downloadFile(chosenServerFile_str, chosenLocalDir_str, new StatusPublisher() {
+                @Override
+                public int initialize(String localPath, String remotePath, DIRECTION direction, String size) {
+                    idNum++;
+                    String dire = (direction == DIRECTION.DOWNLOAD)? "<--":"-->";
+                    State stateInfo = new State(localPath,dire,remotePath,size,"");
+                    stateInfo.setId(idNum);
+                    stateData.add(stateInfo);
+                    return idNum;
+                }
+
+                @Override
+                public void publish(int id, String status) {
+                    int i;
+                    for(i=0;i<stateData.size();i++){
+                        if(stateData.get(i).getId() == id)
+                            break;
+                    }
+
+                    if(i != stateData.size()){
+                        if(status.equals("完成"))
+                            stateData.remove(i);
+                        else
+                            stateData.get(i).setState(status);
+                    }
+                }
+            });
             logger.info(chosenServerFile_str + " 文件下载成功");
         }
         else{
             //目录下载
-            ftp.download(chosenServerFile_str);
+            ftp.downloadDirectory(chosenServerFile_str, chosenLocalDir_str, new StatusPublisher() {
+                @Override
+                public int initialize(String localPath, String remotePath, DIRECTION direction, String size) {
+                    idNum++;
+                    String dire = (direction == DIRECTION.DOWNLOAD)? "<--":"-->";
+                    State stateInfo = new State(localPath,dire,remotePath,size,"");
+                    stateInfo.setId(idNum);
+                    stateData.add(stateInfo);
+                    return idNum;
+                }
+
+                @Override
+                public void publish(int id, String status) {
+                    int i;
+                    for(i=0;i<stateData.size();i++){
+                        if(stateData.get(i).getId() == id)
+                            break;
+                    }
+
+                    if(i != stateData.size()){
+                        if(status.equals("完成"))
+                            stateData.remove(i);
+                        else
+                            stateData.get(i).setState(status);
+                    }
+                }
+            });
             logger.info(chosenServerFile_str + " 目录下载成功");
         }
 
@@ -219,6 +320,51 @@ public class Controller implements Initializable, StreamLogging {
         Button_Download.setDisable(false);
         getLocalDir(1);
     }
+
+    //进入本地目录
+    public void intoLocalDir() {
+        if(isConnected == false){
+            logger.warning("当前没有连接");
+            return;
+        }
+        if(chosenLocalFile_str == null){
+            logger.warning("没有选择本地目录");
+            return;
+        }
+        File file = new File(chosenLocalFile_str);
+        if(file.isFile()){
+            logger.warning(chosenLocalFile_str + " 不是目录");
+            return;
+        }
+        String parent = localPath;
+        String c = (parent.charAt(parent.length()-1) == File.separatorChar)? "":File.separator;
+        TextField_LocalDir.setText(parent + c + file.getName());
+        getLocalDir(0);
+    }
+
+    //进入远程目录
+    public void intoServerDir() {
+        if(isConnected == false){
+            logger.warning("当前没有连接");
+            return;
+        }
+        if(chosenServerFile_str == null){
+            logger.warning("没有选择远程目录");
+            return;
+        }
+        if(!chosenServerFile_path.isDirectory()){
+            logger.warning(chosenServerFile_str + " 不是目录");
+            return;
+        }
+        TextField_ServerDir.setText(chosenServerFile_path.getName());
+        getServerDir(0);
+        try {
+            TextField_ServerDir.setText(ftp.getWorkingDirectory());
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
     //获得本地目录
     public void getLocalDir(int mode){
         if(isConnected == false){
@@ -243,6 +389,13 @@ public class Controller implements Initializable, StreamLogging {
             localPath = cwd + File.separator + localPath;    //将localPath转为绝对路径
         }
         ContextMenu contextMenu = new ContextMenu();
+        MenuItem localItem0 = new MenuItem("进入目录");
+        localItem0.setOnAction(new EventHandler<ActionEvent>() {
+            @Override
+            public void handle(ActionEvent actionEvent) {
+                intoLocalDir();
+            }
+        });
         MenuItem localItem1 = new MenuItem("重命名");
         localItem1.setOnAction(new EventHandler<ActionEvent>() {
             @Override
@@ -265,12 +418,15 @@ public class Controller implements Initializable, StreamLogging {
             }
         });
         contextMenu.getItems().clear();
-        contextMenu.getItems().addAll(localItem1,localItem2,localItem3);
+        contextMenu.getItems().addAll(localItem0,localItem1,localItem2,localItem3);
         if(file.isFile()){                               //如果是文件
             //chosenLocalFile_str = localPath;
-//            list.add(new Label(file.getName(),new ImageView(new Image("file:icon\\file.png"))));  //将文件名加入列表
+            Label label0 = new Label(". .",new ImageView(new Image("file:icon\\dir.png")));
+            Label label1 = new Label("/",new ImageView(new Image("file:icon\\dir.png")));
             Label label = new Label(file.getName(),new ImageView(new Image("file:icon\\file.png")));
             label.setContextMenu(contextMenu);
+            list.add(label0);
+            list.add(label1);
             list.add(label);  //将文件名加入列表
             ListView_LocalDir.setItems(myObservableList);
             chosenLocalDir_str = null;
@@ -278,15 +434,26 @@ public class Controller implements Initializable, StreamLogging {
         else{                                            //如果是目录
             chosenLocalDir_str= localPath;                  //设置本地目录
             File[] files = file.listFiles();             //获取目录下所有文件信息
+            boolean b = false;
+            for(int i=0;i<File.listRoots().length;i++){
+                if(chosenLocalDir_str.equals(File.listRoots()[i].toString())){
+                    b = true;
+                    break;
+                }
+            }
+            if(!b) {
+                Label label0 = new Label(". .", new ImageView(new Image("file:icon\\dir.png")));
+                Label label1 = new Label("/",new ImageView(new Image("file:icon\\dir.png")));
+                list.add(label0);
+                list.add(label1);
+            }
             for(int i = 0; i < files.length; i++){       //将所有文件名加入列表
                 if(files[i].isFile()) {
-//                    list.add(new Label(files[i].getName(), new ImageView(new Image("file:icon\\file.png"))));
                     Label label = new Label(files[i].getName(), new ImageView(new Image("file:icon\\file.png")));
                     label.setContextMenu(contextMenu);
                     list.add(label);
                 }
                 else {
-//                    list.add(new Label(files[i].getName(),new ImageView(new Image("file:icon\\dir.png"))));
                     Label label = new Label(files[i].getName(),new ImageView(new Image("file:icon\\dir.png")));
                     label.setContextMenu(contextMenu);
                     list.add(label);
@@ -333,6 +500,13 @@ public class Controller implements Initializable, StreamLogging {
             e.printStackTrace();
         }
         ContextMenu contextMenu = new ContextMenu();
+        MenuItem serverItem0 = new MenuItem("进入目录");
+        serverItem0.setOnAction(new EventHandler<ActionEvent>() {
+            @Override
+            public void handle(ActionEvent actionEvent) {
+                intoServerDir();
+            }
+        });
         MenuItem serverItem1 = new MenuItem("重命名");
         serverItem1.setOnAction(new EventHandler<ActionEvent>() {
             @Override
@@ -355,16 +529,20 @@ public class Controller implements Initializable, StreamLogging {
             }
         });
         contextMenu.getItems().clear();
-        contextMenu.getItems().addAll(serverItem1,serverItem2,serverItem3);
+        contextMenu.getItems().addAll(serverItem0,serverItem1,serverItem2,serverItem3);
+        if(!chosenServerDir_str.equals("/")){
+            Label label0 = new Label(". .",new ImageView(new Image("file:icon\\dir.png")));
+            Label label1 = new Label("/",new ImageView(new Image("file:icon\\dir.png")));
+            list.add(label0);
+            list.add(label1);
+        }
         for(int i=0;i<paths.length;i++){
             if(paths[i].isDirectory()) {
-//                list.add(new Label(paths[i].getName(), new ImageView(new Image("file:icon\\dir.png"))));
                 Label label = new Label(paths[i].getName(), new ImageView(new Image("file:icon\\dir.png")));
                 label.setContextMenu(contextMenu);
                 list.add(label);
             }
             else {
-//                list.add(new Label(paths[i].getName(), new ImageView(new Image("file:icon\\file.png"))));
                 Label label = new Label(paths[i].getName(), new ImageView(new Image("file:icon\\file.png")));
                 label.setContextMenu(contextMenu);
                 list.add(label);
@@ -719,9 +897,16 @@ public class Controller implements Initializable, StreamLogging {
         StreamLogging.addLogPublisher(new StreamLoggingPublisher() {
             @Override
             public void publish(String logRecord) {
-                TextArea_Log.appendText(logRecord + "\n");
+                Platform.runLater(new Runnable() {
+                    @Override
+                    public void run() {
+                        TextArea_Log.appendText(logRecord + "\n");
+                    }
+                });
             }
         });
+
+        Configuration.DataSocketConf.mode = DataSocket.MODE.PORT;
 
         //设置背景图片
         Pane.setBackground(new Background(new BackgroundImage(new Image("file:icon\\background.png"), BackgroundRepeat.REPEAT, BackgroundRepeat.NO_REPEAT, BackgroundPosition.DEFAULT,
@@ -823,18 +1008,34 @@ public class Controller implements Initializable, StreamLogging {
 
             @Override
             public void changed(ObservableValue<? extends Label> observable, Label oldValue, Label newValue) {
-                if(newValue != null){
-                    File file = new File(localPath);
-                    if(file.isFile())                      //判断是否为文件
-                        chosenLocalFile_str = localPath;
-                    else{
-                        if(localPath.charAt(localPath.length()-1) == File.separatorChar)    //判断路径结尾是否含有分隔符
-                            chosenLocalFile_str = localPath + newValue.getText();
-                        else
-                            chosenLocalFile_str = localPath + File.separator + newValue.getText();
+                Platform.runLater(new Runnable() {
+                    @Override
+                    public void run() {
+                        if(newValue != null){
+                            File file = new File(localPath);
+                            Path path = Paths.get(localPath);
+                            if(newValue.getText().equals(". .")){
+                                TextField_LocalDir.setText(file.getParent());
+                                getLocalDir(0);
+                            }
+                            else if(newValue.getText().equals("/")){
+                                TextField_LocalDir.setText(path.getRoot().toString());
+                                getLocalDir(0);
+                            }
+                            else {
+                                if (file.isFile())                      //判断是否为文件
+                                    chosenLocalFile_str = localPath;
+                                else {
+                                    if (localPath.charAt(localPath.length() - 1) == File.separatorChar)    //判断路径结尾是否含有分隔符
+                                        chosenLocalFile_str = localPath + newValue.getText();
+                                    else
+                                        chosenLocalFile_str = localPath + File.separator + newValue.getText();
+                                }
+                                System.out.println(chosenLocalFile_str);
+                            }
+                        }
                     }
-                    System.out.println(chosenLocalFile_str);
-                }
+                });
             }
         });
 
@@ -843,10 +1044,33 @@ public class Controller implements Initializable, StreamLogging {
 
             @Override
             public void changed(ObservableValue<? extends Number> observable, Number oldValue, Number newValue) {
-                if(newValue != null && newValue.intValue() != -1){
-                    chosenServerFile_path = paths[newValue.intValue()];
-                    chosenServerFile_str = chosenServerFile_path.getPath();
-                }
+                Platform.runLater(new Runnable() {
+                    @Override
+                    public void run() {
+                        if(newValue != null && newValue.intValue() != -1){
+                            if(newValue.intValue() == 0 && !chosenServerDir_str.equals("/")){
+                                TextField_ServerDir.setText("..");
+                                getServerDir(0);
+                                try {
+                                    TextField_ServerDir.setText(ftp.getWorkingDirectory());
+                                } catch (Exception e) {
+                                    e.printStackTrace();
+                                }
+                            }
+                            else if(newValue.intValue() == 1 && !chosenServerDir_str.equals("/")){
+                                TextField_ServerDir.setText("/");
+                                getServerDir(0);
+                            }
+                            else {
+                                int i = 2;
+                                if(chosenServerDir_str.equals("/"))
+                                    i = 0;
+                                chosenServerFile_path = paths[newValue.intValue() - i];
+                                chosenServerFile_str = chosenServerFile_path.getPath();
+                            }
+                        }
+                    }
+                });
             }
         });
 
@@ -879,6 +1103,7 @@ public class Controller implements Initializable, StreamLogging {
     }
     //状态信息类
     public static class State {
+        private int id;                             //ID
         private SimpleStringProperty localFile;     //本地文件或目录
         private SimpleStringProperty direction;     //方向
         private SimpleStringProperty serverFile;    //远程文件或目录
@@ -953,6 +1178,27 @@ public class Controller implements Initializable, StreamLogging {
 
         public void setState(String state) {
             this.state.set(state==null?"":state);
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            State state = (State)o;
+
+            return this.getLocalFile().equals(state.getLocalFile()) && this.getDirection().equals(state.getDirection())
+                    && this.getServerFile().equals(state.getServerFile()) && this.getSize().equals(state.getSize());
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(getLocalFile(),getDirection(),getServerFile(),getSize());
+        }
+
+        public int getId() {
+            return id;
+        }
+
+        public void setId(int id) {
+            this.id = id;
         }
     }
 }

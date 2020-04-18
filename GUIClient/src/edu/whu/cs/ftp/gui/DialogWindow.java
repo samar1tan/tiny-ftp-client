@@ -1,5 +1,7 @@
 package edu.whu.cs.ftp.gui;
 
+import edu.whu.cs.ftp.client.*;
+
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
 import javafx.scene.Scene;

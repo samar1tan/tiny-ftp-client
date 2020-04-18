@@ -1,5 +1,7 @@
 package edu.whu.cs.ftp.gui;
 
+import edu.whu.cs.ftp.client.*;
+
 import javafx.fxml.Initializable;
 import javafx.scene.control.TextField;
 
