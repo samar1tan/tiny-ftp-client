@@ -2,6 +2,7 @@ package edu.whu.cs.ftp.client;
 
 import java.io.IOException;
 import java.lang.reflect.*;
+import java.util.Arrays;
 import java.util.Objects;
 import java.util.concurrent.*;
 
@@ -12,10 +13,10 @@ public class MultiThreadFTPClientHandler implements InvocationHandler, StreamLog
     private FTPClient master;
     private FTPConnectionPool ftpConnectionPool;
     private final ThreadPoolExecutor threadPool = new ThreadPoolExecutor(
-        Configuration.ExecutorPoolConf.corePoolSize,
-        Configuration.ExecutorPoolConf.maxPoolSize,
-        Configuration.ExecutorPoolConf.threadKeepAliveTime,
-        TimeUnit.MILLISECONDS, new SynchronousQueue<>());
+            Configuration.ExecutorPoolConf.corePoolSize,
+            Configuration.ExecutorPoolConf.maxPoolSize,
+            Configuration.ExecutorPoolConf.threadKeepAliveTime,
+            TimeUnit.MILLISECONDS, new SynchronousQueue<>());
 
     private Field remote;
     // login credential source
@@ -23,7 +24,7 @@ public class MultiThreadFTPClientHandler implements InvocationHandler, StreamLog
     private Field pass;
 
     public MultiThreadFTPClientHandler(Class<FTPClientImpl> cls, String addr, int port, int poolSize)
-        throws ReflectiveOperationException {
+            throws ReflectiveOperationException {
         if (poolSize < 2)
             throw new IllegalArgumentException("Pool size should be greater than 1");
         FTPClientBuilder.initialize(cls, addr, port);
@@ -78,11 +79,11 @@ public class MultiThreadFTPClientHandler implements InvocationHandler, StreamLog
         }
         if (method.isAnnotationPresent(NeedSpareThread.class)) {
             try {
-                String remoteDir = (String) remote.get(master);;
+                String remoteDir = (String) remote.get(master); ;
                 String username = (String) user.get(master);
                 String password = (String) pass.get(master);
                 threadPool.execute(() -> {
-                    logger.info("Entering spare thread");
+                    logger.info("Entering thread: " + Arrays.toString(objects));
                     FTPClient ftpClient = null;
                     try {
                         ftpClient = ftpConnectionPool.takeOrGenerate();
@@ -104,12 +105,13 @@ public class MultiThreadFTPClientHandler implements InvocationHandler, StreamLog
                             }
                         }
                     }
-                    logger.info("Exiting spare thread");
+                    logger.info("Exiting thread: " + Arrays.toString(objects));
                 });
-            }catch (NullPointerException | IllegalAccessException e){
+            } catch (NullPointerException | IllegalAccessException e) {
                 logger.severe("Master connection failed");
+            } catch (RejectedExecutionException e) {
+                logger.warning("Rejecting new task: no vacant thread");
             }
-
         } else {
             try {
                 return method.invoke(master, objects);

@@ -2,6 +2,7 @@ package edu.whu.cs.ftp.client;
 
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.concurrent.ThreadPoolExecutor;
 
 /**
  * FTP client implementation for modern FTP servers. Implementations
@@ -215,19 +216,23 @@ public class FTPClientImpl implements FTPClient, StreamLogging {
     }
 
     @Override
-    public void abort() throws IOException {
-        controlSocket.execute("ABOR");
+    public void downloadFile(String remotePath, String localPath, StatusPublisher publisher) {
+
     }
 
     @Override
-    public void download(String path) {
-        logger.info("-------- DOWNLOADING --------");
-        try {
-            Thread.sleep(5000);
-        } catch (InterruptedException e) {
-            logger.warning("INTERRUPTED");
-        }
-        logger.info("----- DOWNLOAD COMPLETE -----");
+    public void downloadDirectory(String remotePath, String localPath, StatusPublisher publisher) {
+
+    }
+
+    @Override
+    public void uploadFile(String localPath, String remotePath, StatusPublisher publisher) {
+
+    }
+
+    @Override
+    public void uploadDirectory(String localPath, String remotePath, StatusPublisher publisher) {
+
     }
 
     @Override
@@ -242,15 +247,12 @@ public class FTPClientImpl implements FTPClient, StreamLogging {
         FTPClient ftp = FTPClientFactory
                 .newMultiThreadFTPClient("192.168.31.94", 21);
         ftp.login("anonymous", "");
-        //
         ftp.getWorkingDirectory();
-        ftp.getWorkingDirectory();
-//        ftp.rename("a", "abcd");
+        ftp.rename("a", "abcd");
         System.out.println(Arrays.toString(ftp.list("a.txt")));
-//        ftp.removeDirectory("abc");
-//        ftp.removeDirectory("abs");
+        ftp.removeDirectory("abs");
         ftp.changeWorkingDirectory("b");
-        //
+        Thread.sleep(20000);
         ftp.quit();
     }
 }

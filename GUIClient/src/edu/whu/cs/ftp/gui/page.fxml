@@ -3,7 +3,7 @@
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
 
-<AnchorPane fx:id="Pane" prefHeight="622.0" prefWidth="764.0" xmlns="http://javafx.com/javafx/10.0.2-internal" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.company.Controller">
+<AnchorPane fx:id="Pane" prefHeight="622.0" prefWidth="764.0" xmlns="http://javafx.com/javafx/10.0.2-internal" xmlns:fx="http://javafx.com/fxml/1" fx:controller="edu.whu.cs.ftp.gui.Controller">
    <children>
       <Label layoutX="28.0" layoutY="24.0" text="IP地址：" />
       <TextField fx:id="TextField_IP" layoutX="73.0" layoutY="20.0" onAction="#getIP" onMouseExited="#getIP" prefHeight="23.0" prefWidth="107.0" />

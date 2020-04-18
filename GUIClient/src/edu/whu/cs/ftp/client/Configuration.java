@@ -11,7 +11,7 @@ public class Configuration {
 
     public static class FTPConnectionPoolConf {
         public static volatile int defaultPoolSize = 10;
-        public static volatile long directPollTimeOut = 1000;//1s
+        public static volatile long directPollTimeOut = 5000;//1s
         public static volatile long pendingPollTimeOut = 30000;//30s
         public static volatile long shrinkInterval = 20000;//20s
     }
