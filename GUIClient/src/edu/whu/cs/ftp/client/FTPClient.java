@@ -36,15 +36,8 @@ public interface FTPClient {
 
     Boolean makeDirectory(String path) throws IOException;
 
-    @NeedSpareThread
-    void downloadFile(String remotePath, String localPath, StatusPublisher publisher);
+    void abort() throws IOException;
 
     @NeedSpareThread
-    void downloadDirectory(String remotePath, String localPath, StatusPublisher publisher);
-
-    @NeedSpareThread
-    void uploadFile(String localPath, String remotePath, StatusPublisher publisher);
-
-    @NeedSpareThread
-    void uploadDirectory(String localPath, String remotePath, StatusPublisher publisher);
+    void download(FTPPath downloadFrom, String saveTo);
 }
