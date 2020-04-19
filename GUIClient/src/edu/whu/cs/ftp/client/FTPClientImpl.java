@@ -4,6 +4,7 @@ import edu.whu.cs.ftp.downloader.DirSeparator;
 import edu.whu.cs.ftp.downloader.DirSeparatorModes;
 import edu.whu.cs.ftp.downloader.Downloader;
 
+import java.io.File;
 import java.io.IOException;
 
 /**
@@ -291,7 +292,18 @@ public class FTPClientImpl implements FTPClient, StreamLogging {
 //        ftp.removeDirectory("abs");
 //        ftp.changeWorkingDirectory("b");
 
-        ftp.downloadDirectory("/plain/", "C:\\Users\\zjz42\\Desktop\\plain\\", new StatusPublisher() {
+        // downloading demo
+        // ONLY for testing: delete downloaded files before
+        File testSavePath = new File("C:\\Users\\zjz42\\Desktop\\plain\\");
+        if (testSavePath.exists()) {
+            String[] entries = testSavePath.list();
+            for (String s : entries) {
+                File currentFile = new File(testSavePath.getPath(), s);
+                currentFile.delete();
+            }
+        }
+        // start downloading
+        StatusPublisher dullStatusPublisher = new StatusPublisher() {
             @Override
             public int initialize(String localPath, String remotePath, DIRECTION direction, String size) {
                 return 0;
@@ -300,9 +312,17 @@ public class FTPClientImpl implements FTPClient, StreamLogging {
             @Override
             public void publish(int id, String status) {
             }
-        });
+        };
+        ftp.downloadDirectory("/plain/", "C:\\Users\\zjz42\\Desktop\\plain\\", dullStatusPublisher);
+        ftp.downloadDirectory("/nested/", "C:\\Users\\zjz42\\Desktop\\nested\\", dullStatusPublisher);
+//        ftp.downloadFile("/bigfile.zip", "C:\\Users\\zjz42\\Desktop\\bigfile.zip", dullStatusPublisher);
+        ftp.downloadFile("/mediumfile.zip", "C:\\Users\\zjz42\\Desktop\\mediumfile.zip", dullStatusPublisher);
+        ftp.downloadDirectory("/blank/", "C:\\Users\\zjz42\\Desktop\\blank\\", dullStatusPublisher);
+        ftp.downloadFile("/smallfile.mp4", "C:\\Users\\zjz42\\Desktop\\smallfile.mp4", dullStatusPublisher);
+        ftp.downloadFile("/中文.txt", "C:\\Users\\zjz42\\Desktop\\中文.txt", dullStatusPublisher);
+        ftp.downloadFile("/tinyfile.txt", "C:\\Users\\zjz42\\Desktop\\tinyfile.txt", dullStatusPublisher);
 
-        Thread.sleep(20000);
+        Thread.sleep(60000);
         ftp.quit();
     }
 }

@@ -12,7 +12,7 @@ import java.util.concurrent.TimeUnit;
 /**
  * Control Socket for FTP Client. Support multi-threading.
  */
-public class ControlSocket implements edu.whu.cs.ftp.client.StreamLogging {
+public class ControlSocket implements StreamLogging {
     private final Socket controlSocket;
     private BufferedReader reader;
     private BufferedWriter writer;
@@ -24,7 +24,7 @@ public class ControlSocket implements edu.whu.cs.ftp.client.StreamLogging {
             (ScheduledThreadPoolExecutor) Executors.newScheduledThreadPool(1);
     private volatile long lastExecution = Calendar.getInstance().getTimeInMillis();
 
-    private edu.whu.cs.ftp.client.DataSocket dataSocket;
+    private DataSocket dataSocket;
     private ServerSocket activeSocket;
 
     /**

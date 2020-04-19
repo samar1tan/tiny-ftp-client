@@ -6,19 +6,20 @@ import java.io.*;
 import java.net.Socket;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Calendar;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class Downloader implements StreamLogging {
     private final ControlSocket controlSocket;
     private final FTPClient ftpClient;
-    private edu.whu.cs.ftp.downloader.DownloadExpectedStatusCodes expectedStatusCodes;
+    private DownloadExpectedStatusCodes expectedStatusCodes;
 //    private DownloadingStates downloadingStates; // TODO: thread to refresh
 
     public Downloader(ControlSocket controlSocket, FTPClient ftpClient) {
         this.controlSocket = controlSocket;
         this.ftpClient = ftpClient;
-        this.expectedStatusCodes = new edu.whu.cs.ftp.downloader.DownloadExpectedStatusCodes();
+        this.expectedStatusCodes = new DownloadExpectedStatusCodes();
     }
 
     public void downloadFileOrDirectory(FTPPath downloadFrom, String saveTo) throws DownloadException, IOException {
@@ -28,7 +29,7 @@ public class Downloader implements StreamLogging {
             File rootDir = new File(saveTo);
             if (!rootDir.exists()) {
                 if (!rootDir.mkdir()) {
-                    throw new edu.whu.cs.ftp.downloader.CreateSaveDirFailed(saveTo);
+                    throw new CreateSaveDirFailed(saveTo);
                 }
             }
 
@@ -53,6 +54,7 @@ public class Downloader implements StreamLogging {
         checkRemoteFile(downloadFrom, fileInfo);
         checkLocalPath(saveTo, fileInfo);
 
+        long dataSocketOpenedTimeInMs = Calendar.getInstance().getTimeInMillis();
         DataSocket ftpDataSocket;
         if (fileInfo.downloadedByteNum > 0) {
             // REST must be executed right before RETR
@@ -65,23 +67,34 @@ public class Downloader implements StreamLogging {
         Socket dataSocket = ftpDataSocket.getDataSocket();
 
         File tempFilePath = new File(fileInfo.localFilePath + ".ftpdownloading");
-        FileOutputStream tempFile;
+        FileOutputStream tempFileStream;
         if (fileInfo.downloadedByteNum > 0) {
-            tempFile = new FileOutputStream(tempFilePath, true);
+            tempFileStream = new FileOutputStream(tempFilePath, true);
         } else {
-            tempFile = new FileOutputStream(tempFilePath);
+            tempFileStream = new FileOutputStream(tempFilePath);
         }
 
         InputStream readFromServer = dataSocket.getInputStream();
-        BufferedOutputStream tempFileBufferedStream = new BufferedOutputStream(tempFile);
+        BufferedOutputStream tempFileBufferedStream = new BufferedOutputStream(tempFileStream);
         readFromServer.transferTo(tempFileBufferedStream);
         tempFileBufferedStream.flush();
+        tempFileBufferedStream.close(); // as well as underlying FileOutputStream tempFileStream
 
-        tempFileBufferedStream.close(); // as well as underlying FileOutputStream tempFile
-        while (!ftpDataSocket.isClosed()) {
-            logger.warning("Trying to close dataSocket");
-            ftpDataSocket.close();  // as well as related InputStream readFromServer
+        final long minDataSocketLiveTimeInMs = 1000;
+        long dataSocketClosedTimeInMs = Calendar.getInstance().getTimeInMillis();
+        long dataSocketLiveTime = dataSocketClosedTimeInMs - dataSocketOpenedTimeInMs;
+        if (dataSocketLiveTime < minDataSocketLiveTimeInMs) {
+            logger.warning(String.format(
+                    "DataSocket will die too fast (%s ms). +%ss for it.",
+                    dataSocketLiveTime, minDataSocketLiveTimeInMs / 1000)
+            );
+            try {
+                Thread.sleep(1000);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
         }
+        ftpDataSocket.close(); // as well as associated InputStream readFromServer
 
         Files.move(tempFilePath.toPath(), Path.of(saveTo));
     }
@@ -92,7 +105,7 @@ public class Downloader implements StreamLogging {
         if (getDataSocket) {
             DataSocket dataSocket = controlSocket.execute(command, expectedStatusCodes.getStatusCode(cmd));
             if (dataSocket == null) {
-                throw new edu.whu.cs.ftp.downloader.FTPCommandFailedException(cmd, arg, null);
+                throw new FTPCommandFailedException(cmd, arg, null);
             }
             return dataSocket;
         } else {
@@ -100,7 +113,7 @@ public class Downloader implements StreamLogging {
             String statusMessage = controlSocket.getMessage();
             int statusCode = Integer.parseInt(statusMessage.substring(0, 3));
             if (statusCode != expectedStatusCodes.getStatusCode(cmd)) {
-                throw new edu.whu.cs.ftp.downloader.FTPCommandFailedException(cmd, arg, statusMessage);
+                throw new FTPCommandFailedException(cmd, arg, statusMessage);
             }
             return statusMessage;
         }
@@ -113,7 +126,7 @@ public class Downloader implements StreamLogging {
         String command = cmd + ' ' + arg;
         DataSocket dataSocket = controlSocket.execute(command, expectedStatusCodes.getStatusCode(cmd), preSimpleCommand);
         if (dataSocket == null) {
-            throw new edu.whu.cs.ftp.downloader.FTPCommandFailedException(cmd, arg, null);
+            throw new FTPCommandFailedException(cmd, arg, null);
         }
 
         return dataSocket;
@@ -127,7 +140,7 @@ public class Downloader implements StreamLogging {
         if (matcher.matches()) {
             return matcher.group(regexGroupIndex);
         } else {
-            throw new edu.whu.cs.ftp.downloader.ParseStatusMessageFailed(statusMessage, groupedRegex, regexGroupIndex);
+            throw new ParseStatusMessageFailed(statusMessage, groupedRegex, regexGroupIndex);
         }
     }
 
@@ -137,7 +150,7 @@ public class Downloader implements StreamLogging {
         String ret = execFTPCommand("SIZE", serverFileName, "(\\d+)(\\s)(\\d+)(\\s+)", 3);
         serverFileByteNum = ret.equals("0") ? -1 : Long.parseLong(ret);
         if (serverFileByteNum == -1) {
-            throw new edu.whu.cs.ftp.downloader.ServerFileNotExistsException(serverPath);
+            throw new ServerFileNotExistsException(serverPath);
         }
 
         return serverFileByteNum;
@@ -166,7 +179,7 @@ public class Downloader implements StreamLogging {
         // check if local path is already occupied
         File pathOccupied = new File(localPath);
         if (pathOccupied.exists()) {
-            throw new edu.whu.cs.ftp.downloader.LocalPathOccupiedException(localPath);
+            throw new LocalPathOccupiedException(localPath);
         }
 
         // collect path info and check dir
@@ -174,7 +187,7 @@ public class Downloader implements StreamLogging {
         fileInfo.localFileDir = parseDirFromString(localPath, new DirSeparator(DirSeparatorModes.LocalMachine));
         fileInfo.localFilePath = fileInfo.localFileDir + fileInfo.localFileName;
         if (!new File(fileInfo.localFileDir).exists()) {
-            throw new edu.whu.cs.ftp.downloader.SaveDirNotExistsException(fileInfo.localFileDir);
+            throw new SaveDirNotExistsException(fileInfo.localFileDir);
         }
 
         // check if enough local space and downloaded before
@@ -188,7 +201,7 @@ public class Downloader implements StreamLogging {
         // check if have enough space
         long availableByteNum = new File(fileInfo.localFileDir).getUsableSpace();
         if (restByteNum >= availableByteNum) {
-            throw new edu.whu.cs.ftp.downloader.NoEnoughSpaceException(localPath, restByteNum, availableByteNum);
+            throw new NoEnoughSpaceException(localPath, restByteNum, availableByteNum);
         }
     }
 
@@ -211,7 +224,6 @@ public class Downloader implements StreamLogging {
     }
 
     public static void main(String[] args) {
-        System.out.println("Unit testing: the downloading module of FTP client");
     }
 }
 
