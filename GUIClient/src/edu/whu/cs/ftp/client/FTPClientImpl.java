@@ -262,11 +262,21 @@ public class FTPClientImpl implements FTPClient, StreamLogging {
 
     @Override
     public void uploadFile(String localPath, String remotePath, StatusPublisher publisher) {
-
+        UpLoader uploader = new UpLoader(ftp, controlSocket, publisher);
+        Path local_path = Paths.get(localPath);
+        File localFile = local_path.toFile();
+        FTPPath server_path = new FTPPath(remotePath, "", localFile.length());
+        uploader.UpLoadDirectory(local_path, server_path);
+        uploader.db.close();
     }
 
     @Override
     public void uploadDirectory(String localPath, String remotePath, StatusPublisher publisher) {
+        UpLoader uploader = new UpLoader(ftp, controlSocket, publisher);
+        Path local_path = Paths.get(localPath);
+        FTPPath server_path = new FTPPath(remotePath, "");
+        uploader.UpLoadDirectory(local_path, server_path);
+        uploader.db.close();
 
     }
 
