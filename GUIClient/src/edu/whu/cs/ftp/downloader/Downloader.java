@@ -83,17 +83,17 @@ public class Downloader implements StreamLogging {
         final long minDataSocketLiveTimeInMs = 1000;
         long dataSocketClosedTimeInMs = Calendar.getInstance().getTimeInMillis();
         long dataSocketLiveTime = dataSocketClosedTimeInMs - dataSocketOpenedTimeInMs;
-        if (dataSocketLiveTime < minDataSocketLiveTimeInMs) {
-            logger.warning(String.format(
-                    "DataSocket will die too fast (%s ms). +%ss for it.",
-                    dataSocketLiveTime, minDataSocketLiveTimeInMs / 1000)
-            );
-            try {
-                Thread.sleep(1000);
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
-        }
+//        if (dataSocketLiveTime < minDataSocketLiveTimeInMs) {
+//            logger.warning(String.format(
+//                    "DataSocket will die too fast (%s ms). +%ss for it.",
+//                    dataSocketLiveTime, minDataSocketLiveTimeInMs / 1000)
+//            );
+//            try {
+//                Thread.sleep(1000);
+//            } catch (InterruptedException e) {
+//                e.printStackTrace();
+//            }
+//        }
         ftpDataSocket.close(); // as well as associated InputStream readFromServer
 
         Files.move(tempFilePath.toPath(), Path.of(saveTo));

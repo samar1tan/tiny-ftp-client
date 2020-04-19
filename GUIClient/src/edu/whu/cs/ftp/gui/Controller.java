@@ -2,6 +2,7 @@ package edu.whu.cs.ftp.gui;
 
 import edu.whu.cs.ftp.client.*;
 
+import edu.whu.cs.ftp.downloader.DownloadException;
 import javafx.application.Platform;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.value.ChangeListener;
@@ -21,6 +22,7 @@ import java.io.IOException;
 import java.net.URL;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -144,7 +146,7 @@ public class Controller implements Initializable, StreamLogging {
         }
     }
     //点击“上传”按钮
-    public void ClickUpload(){
+    public void ClickUpload() throws Throwable {
         if(isConnected == false){
             logger.warning("当前没有连接");
             return;
@@ -232,7 +234,7 @@ public class Controller implements Initializable, StreamLogging {
         Button_Download.setDisable(false);
     }
     //点击“下载”按钮
-    public void ClickDownload(){
+    public void ClickDownload() throws Throwable {
         if(isConnected == false){
             logger.warning("当前没有连接");
             return;

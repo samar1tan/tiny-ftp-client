@@ -2,10 +2,15 @@ package edu.whu.cs.ftp.client;
 
 import edu.whu.cs.ftp.downloader.DirSeparator;
 import edu.whu.cs.ftp.downloader.DirSeparatorModes;
+import edu.whu.cs.ftp.downloader.DownloadException;
 import edu.whu.cs.ftp.downloader.Downloader;
+import edu.whu.cs.ftp.uploader.UpLoader;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.sql.SQLException;
 
 /**
  * FTP client implementation for modern FTP servers. Implementations
@@ -219,7 +224,8 @@ public class FTPClientImpl implements FTPClient, StreamLogging {
     }
 
     @Override
-    public void downloadFile(String remotePath, String localPath, StatusPublisher publisher) {
+    public void downloadFile(String remotePath, String localPath, StatusPublisher publisher)
+            throws IOException, DownloadException {
         String ftpDir = Downloader.parseDirFromString(remotePath, new DirSeparator(DirSeparatorModes.FTP));
         String ftpName = Downloader.parseNameFromString(remotePath, new DirSeparator(DirSeparatorModes.FTP));
         FTPPath remoteFTPPath = new FTPPath(ftpDir, ftpName, 1);
@@ -227,20 +233,14 @@ public class FTPClientImpl implements FTPClient, StreamLogging {
         logger.info("-------StartDownloading-------");
 
         Downloader downloader = new Downloader(controlSocket, this);
-        try {
-            downloader.downloadFileOrDirectory(remoteFTPPath, localPath);
-        } catch (Exception e) {
-            e.printStackTrace();
-            System.out.println(e.toString());
-            logger.warning("-------DownloadInterrupted-------");
-            return;
-        }
+        downloader.downloadFileOrDirectory(remoteFTPPath, localPath);
 
         logger.info("-------SuccessfullyDownloaded-------");
     }
 
     @Override
-    public void downloadDirectory(String remotePath, String localPath, StatusPublisher publisher) {
+    public void downloadDirectory(String remotePath, String localPath, StatusPublisher publisher)
+            throws IOException, DownloadException {
         String ftpDir = Downloader.parseDirFromString(remotePath, new DirSeparator(DirSeparatorModes.FTP));
         String ftpName = Downloader.parseNameFromString(remotePath, new DirSeparator(DirSeparatorModes.FTP));
         FTPPath remoteFTPPath = new FTPPath(ftpDir, ftpName);
@@ -248,31 +248,26 @@ public class FTPClientImpl implements FTPClient, StreamLogging {
         logger.info("-------StartDownloading-------");
 
         Downloader downloader = new Downloader(controlSocket, this);
-        try {
-            downloader.downloadFileOrDirectory(remoteFTPPath, localPath);
-        } catch (Exception e) {
-            e.printStackTrace();
-            System.out.println(e.toString());
-            logger.warning("-------DownloadInterrupted-------");
-            return;
-        }
+        downloader.downloadFileOrDirectory(remoteFTPPath, localPath);
 
         logger.info("-------SuccessfullyDownloaded-------");
     }
 
     @Override
-    public void uploadFile(String localPath, String remotePath, StatusPublisher publisher) {
-        UpLoader uploader = new UpLoader(ftp, controlSocket, publisher);
+    public void uploadFile(String localPath, String remotePath, StatusPublisher publisher)
+            throws IOException, SQLException {
+        UpLoader uploader = new UpLoader(this, controlSocket, publisher);
         Path local_path = Paths.get(localPath);
         File localFile = local_path.toFile();
-        FTPPath server_path = new FTPPath(remotePath, "", localFile.length());
+        FTPPath server_path = new FTPPath(remotePath, "", (int) localFile.length());
         uploader.UpLoadDirectory(local_path, server_path);
         uploader.db.close();
     }
 
     @Override
-    public void uploadDirectory(String localPath, String remotePath, StatusPublisher publisher) {
-        UpLoader uploader = new UpLoader(ftp, controlSocket, publisher);
+    public void uploadDirectory(String localPath, String remotePath, StatusPublisher publisher)
+            throws IOException, SQLException {
+        UpLoader uploader = new UpLoader(this, controlSocket, publisher);
         Path local_path = Paths.get(localPath);
         FTPPath server_path = new FTPPath(remotePath, "");
         uploader.UpLoadDirectory(local_path, server_path);
@@ -285,9 +280,9 @@ public class FTPClientImpl implements FTPClient, StreamLogging {
         controlSocket.execute("HELP");
     }
 
-    public static void main(String[] args) throws Exception {
+    public static void main(String[] args) throws Throwable {
         final String FTP_SERVER_ADDR = "localhost";
-        final String FTP_USERNAME = "zjz";
+        final String FTP_USERNAME = "anonymous";
 
         // log to console
         StreamLogging.addLogPublisher(System.out::println);
@@ -304,14 +299,14 @@ public class FTPClientImpl implements FTPClient, StreamLogging {
 
         // downloading demo
         // ONLY for testing: delete downloaded files before
-        File testSavePath = new File("C:\\Users\\zjz42\\Desktop\\plain\\");
-        if (testSavePath.exists()) {
-            String[] entries = testSavePath.list();
-            for (String s : entries) {
-                File currentFile = new File(testSavePath.getPath(), s);
-                currentFile.delete();
-            }
-        }
+//        File testSavePath = new File("C:\\Users\\zjz42\\Desktop\\plain\\");
+//        if (testSavePath.exists()) {
+//            String[] entries = testSavePath.list();
+//            for (String s : entries) {
+//                File currentFile = new File(testSavePath.getPath(), s);
+//                currentFile.delete();
+//            }
+//        }
         // start downloading
         StatusPublisher dullStatusPublisher = new StatusPublisher() {
             @Override
@@ -323,16 +318,13 @@ public class FTPClientImpl implements FTPClient, StreamLogging {
             public void publish(int id, String status) {
             }
         };
-        ftp.downloadDirectory("/plain/", "C:\\Users\\zjz42\\Desktop\\plain\\", dullStatusPublisher);
-        ftp.downloadDirectory("/nested/", "C:\\Users\\zjz42\\Desktop\\nested\\", dullStatusPublisher);
-//        ftp.downloadFile("/bigfile.zip", "C:\\Users\\zjz42\\Desktop\\bigfile.zip", dullStatusPublisher);
-        ftp.downloadFile("/mediumfile.zip", "C:\\Users\\zjz42\\Desktop\\mediumfile.zip", dullStatusPublisher);
-        ftp.downloadDirectory("/blank/", "C:\\Users\\zjz42\\Desktop\\blank\\", dullStatusPublisher);
-        ftp.downloadFile("/smallfile.mp4", "C:\\Users\\zjz42\\Desktop\\smallfile.mp4", dullStatusPublisher);
-        ftp.downloadFile("/中文.txt", "C:\\Users\\zjz42\\Desktop\\中文.txt", dullStatusPublisher);
-        ftp.downloadFile("/tinyfile.txt", "C:\\Users\\zjz42\\Desktop\\tinyfile.txt", dullStatusPublisher);
-
-        Thread.sleep(60000);
+        for (int i = 0; i < 10; i++) {
+            ftp.downloadDirectory(
+                    "/a",
+                    "downloads", dullStatusPublisher);
+        }
+//        ftp.uploadFile("downloads/a.txt", "/", dullStatusPublisher);
+//        Thread.sleep(60000);
         ftp.quit();
     }
 }

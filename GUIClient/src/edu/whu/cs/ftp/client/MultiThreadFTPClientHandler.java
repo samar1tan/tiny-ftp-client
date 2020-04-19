@@ -3,7 +3,6 @@ package edu.whu.cs.ftp.client;
 import java.io.IOException;
 import java.lang.reflect.*;
 import java.util.Arrays;
-import java.util.Objects;
 import java.util.concurrent.*;
 
 /**
@@ -79,7 +78,7 @@ public class MultiThreadFTPClientHandler implements InvocationHandler, StreamLog
         }
         if (method.isAnnotationPresent(NeedSpareThread.class)) {
             try {
-                String remoteDir = (String) remote.get(master); ;
+                String remoteDir = (String) remote.get(master);
                 String username = (String) user.get(master);
                 String password = (String) pass.get(master);
                 threadPool.execute(() -> {
@@ -92,16 +91,21 @@ public class MultiThreadFTPClientHandler implements InvocationHandler, StreamLog
                         method.invoke(ftpClient, objects);
                     } catch (NullPointerException | InterruptedException e) {
                         logger.warning("Failed to obtain ftp connection");
-                    } catch (IOException | IllegalAccessException e) {
-                        logger.severe(e.getMessage());
-                    } catch (InvocationTargetException e) {
-                        logger.severe(e.getCause().getMessage());
+                    } catch (Exception e) {
+                        logger.severe(e.getMessage() != null
+                                ? e.getMessage()
+                                : e.getCause().getMessage() == null
+                                ? e.getCause().toString()
+                                : e.getCause().getMessage());
                     } finally {
                         if (ftpClient != null) {
-                            try {
-                                ftpConnectionPool.put(ftpClient);
-                            } catch (InterruptedException e) {
-                                logger.severe(e.getMessage());
+                            if (!ftpConnectionPool.offer(ftpClient)) {
+                                logger.warning("Interrupted, quiting connection right away");
+                                try {
+                                    ftpClient.quit();
+                                } catch (IOException ex) {
+                                    logger.severe(ex.getMessage());
+                                }
                             }
                         }
                     }
