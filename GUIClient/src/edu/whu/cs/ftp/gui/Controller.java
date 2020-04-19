@@ -230,7 +230,6 @@ public class Controller implements Initializable, StreamLogging {
         //上传、下载按钮恢复
         Button_Upload.setDisable(false);
         Button_Download.setDisable(false);
-        getServerDir(1);
     }
     //点击“下载”按钮
     public void ClickDownload(){
@@ -318,7 +317,6 @@ public class Controller implements Initializable, StreamLogging {
         //上传、下载按钮恢复
         Button_Upload.setDisable(false);
         Button_Download.setDisable(false);
-        getLocalDir(1);
     }
 
     //进入本地目录
