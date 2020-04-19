@@ -3,6 +3,7 @@ package edu.whu.cs.ftp.client;
 import edu.whu.cs.ftp.downloader.Downloader;
 
 import java.io.IOException;
+import java.util.Arrays;
 
 /**
  * FTP client implementation for modern FTP servers. Implementations
@@ -140,7 +141,7 @@ public class FTPClientImpl implements FTPClient, StreamLogging {
     }
 
     /**
-     * Change current directory. Synt   ax like "..",
+     * Change current directory. Syntax like "..",
      * relative path and absolute path are supported as well.
      *
      * @param dir Remote directory.
@@ -216,23 +217,23 @@ public class FTPClientImpl implements FTPClient, StreamLogging {
     }
 
     @Override
-    public void abort() throws IOException {
-        controlSocket.execute("ABOR");
+    public void downloadFile(String remotePath, String localPath, StatusPublisher publisher) {
+        Downloader downloader = new Downloader(new FTPPath(remotePath))
     }
 
     @Override
-    public void download(FTPPath downloadFrom, String saveTo) {
-        logger.info("-------- DOWNLOADING --------");
-        try {
-//            Thread.sleep(5000);
-            Downloader downloader = new Downloader(controlSocket, this);
-            downloader.downloadFile(downloadFrom, saveTo);
-        } catch (Exception e) {
-            System.out.println(e.toString());
-            e.printStackTrace();
-            logger.warning("INTERRUPTED");
-        }
-        logger.info("----- DOWNLOAD COMPLETE -----");
+    public void downloadDirectory(String remotePath, String localPath, StatusPublisher publisher) {
+
+    }
+
+    @Override
+    public void uploadFile(String localPath, String remotePath, StatusPublisher publisher) {
+
+    }
+
+    @Override
+    public void uploadDirectory(String localPath, String remotePath, StatusPublisher publisher) {
+
     }
 
     @Override
@@ -245,24 +246,14 @@ public class FTPClientImpl implements FTPClient, StreamLogging {
         StreamLogging.addLogPublisher(System.out::println);
         // this is not a singleton
         FTPClient ftp = FTPClientFactory
-                .newMultiThreadFTPClient("127.0.0.1", 21);
-        ftp.login("zjz", "");
-        //
+                .newMultiThreadFTPClient("192.168.31.94", 21);
+        ftp.login("anonymous", "");
         ftp.getWorkingDirectory();
-//        ftp.getWorkingDirectory();
-//        ftp.rename("a", "abcd");
-//        System.out.println(Arrays.toString(ftp.list("a.txt")));
-//        ftp.removeDirectory("abc");
-//        ftp.removeDirectory("abs");
-//        ftp.changeWorkingDirectory("b");
-
-//        ftp.download(new FTPPath("/plain", "tinyfile.txt", 1), "C:\\Users\\zjz42\\Desktop\\tinyfile.txt");
-//        ftp.download(new FTPPath("/plain/", "中文.txt", 1), "C:\\Users\\zjz42\\Desktop\\中文.txt");
-        ftp.download(new FTPPath("/", "bigfile.zip", 1), "C:\\Users\\zjz42\\Desktop\\bigfile.zip");
-        ftp.download(new FTPPath("/", "mediumfile.zip", 1), "C:\\Users\\zjz42\\Desktop\\mediumfile.zip");
-        ftp.download(new FTPPath("/", "smallfile.mp4", 1), "C:\\Users\\zjz42\\Desktop\\smallfile.mp4");
-//        ftp.download(new FTPPath("/plain/", "whitespaced filename.ppt", 1), "C:\\Users\\zjz42\\Desktop\\whitespaced filename.ppt");
-
+        ftp.rename("a", "abcd");
+        System.out.println(Arrays.toString(ftp.list("a.txt")));
+        ftp.removeDirectory("abs");
+        ftp.changeWorkingDirectory("b");
+        Thread.sleep(20000);
         ftp.quit();
     }
 }
