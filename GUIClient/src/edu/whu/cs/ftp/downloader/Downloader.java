@@ -21,7 +21,7 @@ public class Downloader implements StreamLogging {
         this.expectedStatusCodes = new edu.whu.cs.ftp.downloader.DownloadExpectedStatusCodes();
     }
 
-    public void downloadFileOrDirectory(FTPPath downloadFrom, String saveTo) throws edu.whu.cs.ftp.downloader.DownloadException, IOException {
+    public void downloadFileOrDirectory(FTPPath downloadFrom, String saveTo) throws DownloadException, IOException {
         if (!downloadFrom.isDirectory()) {
             downloadFile(downloadFrom, saveTo);
         } else {
@@ -48,7 +48,7 @@ public class Downloader implements StreamLogging {
     // -> client get "227 entering passive mode (h1,h2,h3,h4,p1,p2)" -> h1.h2.h3.h4:p1*256+p2
     // -> client:N+1--data socket--server:P (already in this step when get DataSocket)
     // CWD -> SIZE -> REST -> RETR
-    private void downloadFile(FTPPath downloadFrom, String saveTo) throws edu.whu.cs.ftp.downloader.DownloadException, IOException {
+    private void downloadFile(FTPPath downloadFrom, String saveTo) throws DownloadException, IOException {
         FileInfo fileInfo = new FileInfo();
         checkRemoteFile(downloadFrom, fileInfo);
         checkLocalPath(saveTo, fileInfo);
@@ -86,26 +86,8 @@ public class Downloader implements StreamLogging {
         Files.move(tempFilePath.toPath(), Path.of(saveTo));
     }
 
-    private static String parseDirFromString(String fullPath, DirSeparator separator) {
-        String[] parts = fullPath.split(separator.getSeparatorForRegex());
-        StringBuilder dir = new StringBuilder();
-        int len = parts.length;
-        for (int i = 0; i + 1 < len; ++i) {
-            dir.append(parts[i]);
-            dir.append(separator);
-        }
-
-        return dir.toString();
-    }
-
-    private static String parseNameFromString(String fullPath, DirSeparator separator) {
-        String[] parts = fullPath.split(separator.getSeparatorForRegex());
-
-        return parts[parts.length - 1];
-    }
-
     // DataSocket / String message, depending on parameter getDataSocket
-    private Object execFTPCommand(String cmd, String arg, boolean getDataSocket) throws edu.whu.cs.ftp.downloader.DownloadException, IOException {
+    private Object execFTPCommand(String cmd, String arg, boolean getDataSocket) throws DownloadException, IOException {
         String command = cmd + ' ' + arg;
         if (getDataSocket) {
             DataSocket dataSocket = controlSocket.execute(command, expectedStatusCodes.getStatusCode(cmd));
@@ -126,7 +108,7 @@ public class Downloader implements StreamLogging {
 
     // REST must be executed right before RETR, without PASV in between
     private DataSocket execFTPCommand(String cmd, String arg, String preSimpleCmd, String preSimpleArg)
-            throws edu.whu.cs.ftp.downloader.DownloadException, IOException {
+            throws DownloadException, IOException {
         String preSimpleCommand = preSimpleCmd + ' ' + preSimpleArg;
         String command = cmd + ' ' + arg;
         DataSocket dataSocket = controlSocket.execute(command, expectedStatusCodes.getStatusCode(cmd), preSimpleCommand);
@@ -138,7 +120,7 @@ public class Downloader implements StreamLogging {
     }
 
     private String execFTPCommand(String cmd, String arg, String groupedRegex, int regexGroupIndex)
-            throws edu.whu.cs.ftp.downloader.DownloadException, IOException {
+            throws DownloadException, IOException {
         String statusMessage = (String) execFTPCommand(cmd, arg, false);
         Pattern pattern = Pattern.compile(groupedRegex);
         Matcher matcher = pattern.matcher(statusMessage);
@@ -149,7 +131,7 @@ public class Downloader implements StreamLogging {
         }
     }
 
-    private long getServerFileSize(String serverFileName, FTPPath serverPath) throws edu.whu.cs.ftp.downloader.DownloadException, IOException {
+    private long getServerFileSize(String serverFileName, FTPPath serverPath) throws DownloadException, IOException {
         long serverFileByteNum = 0;
 
         String ret = execFTPCommand("SIZE", serverFileName, "(\\d+)(\\s)(\\d+)(\\s+)", 3);
@@ -163,7 +145,7 @@ public class Downloader implements StreamLogging {
 
     // check existence and get size of remote file
     private void checkRemoteFile(FTPPath remotePath, FileInfo fileInfo)
-            throws edu.whu.cs.ftp.downloader.DownloadException, IOException {
+            throws DownloadException, IOException {
         // change working dir
         if (remotePath.getName().contains(" ")) {
             fileInfo.serverFileName = "\"" + remotePath.getName() + "\"";
@@ -180,7 +162,7 @@ public class Downloader implements StreamLogging {
     }
 
     // check if local path available to save and collect related info
-    private void checkLocalPath(String localPath, FileInfo fileInfo) throws edu.whu.cs.ftp.downloader.DownloadException {
+    private void checkLocalPath(String localPath, FileInfo fileInfo) throws DownloadException {
         // check if local path is already occupied
         File pathOccupied = new File(localPath);
         if (pathOccupied.exists()) {
@@ -210,6 +192,24 @@ public class Downloader implements StreamLogging {
         }
     }
 
+    public static String parseDirFromString(String fullPath, DirSeparator separator) {
+        String[] parts = fullPath.split(separator.getSeparatorForRegex());
+        StringBuilder dir = new StringBuilder();
+        int len = parts.length;
+        for (int i = 0; i + 1 < len; ++i) {
+            dir.append(parts[i]);
+            dir.append(separator);
+        }
+
+        return dir.toString();
+    }
+
+    public static String parseNameFromString(String fullPath, DirSeparator separator) {
+        String[] parts = fullPath.split(separator.getSeparatorForRegex());
+
+        return parts[parts.length - 1];
+    }
+
     public static void main(String[] args) {
         System.out.println("Unit testing: the downloading module of FTP client");
     }
@@ -223,42 +223,4 @@ class FileInfo {
     public String localFilePath;
     public long serverFileByteNum;
     public long downloadedByteNum;
-}
-
-enum DirSeparatorModes {
-    FTP,
-    Unix,
-    Windows,
-    LocalMachine
-}
-
-class DirSeparator {
-    private String separator;
-
-    public DirSeparator(DirSeparatorModes mode) {
-        switch (mode) {
-            case FTP:
-            case Unix:
-                separator = "/";
-                break;
-            case Windows:
-                separator = "\\";
-                break;
-            case LocalMachine:
-                separator = File.separator;
-        }
-    }
-
-    @Override
-    public String toString() { // real representation
-        return separator;
-    }
-
-    public String getSeparator() {
-        return separator;
-    }
-
-    public String getSeparatorForRegex() {
-        return separator.equals("\\") ? "\\\\" : separator;
-    }
 }

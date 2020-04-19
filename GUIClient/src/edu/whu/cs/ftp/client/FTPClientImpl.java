@@ -1,7 +1,10 @@
 package edu.whu.cs.ftp.client;
 
+import edu.whu.cs.ftp.downloader.DirSeparator;
+import edu.whu.cs.ftp.downloader.DirSeparatorModes;
+import edu.whu.cs.ftp.downloader.Downloader;
+
 import java.io.IOException;
-import java.util.Arrays;
 
 /**
  * FTP client implementation for modern FTP servers. Implementations
@@ -216,12 +219,44 @@ public class FTPClientImpl implements FTPClient, StreamLogging {
 
     @Override
     public void downloadFile(String remotePath, String localPath, StatusPublisher publisher) {
-//        Downloader downloader = new Downloader(new FTPPath(remotePath))
+        String ftpDir = Downloader.parseDirFromString(remotePath, new DirSeparator(DirSeparatorModes.FTP));
+        String ftpName = Downloader.parseNameFromString(remotePath, new DirSeparator(DirSeparatorModes.FTP));
+        FTPPath remoteFTPPath = new FTPPath(ftpDir, ftpName, 1);
+
+        logger.info("-------StartDownloading-------");
+
+        Downloader downloader = new Downloader(controlSocket, this);
+        try {
+            downloader.downloadFileOrDirectory(remoteFTPPath, localPath);
+        } catch (Exception e) {
+            e.printStackTrace();
+            System.out.println(e.toString());
+            logger.warning("-------DownloadInterrupted-------");
+            return;
+        }
+
+        logger.info("-------SuccessfullyDownloaded-------");
     }
 
     @Override
     public void downloadDirectory(String remotePath, String localPath, StatusPublisher publisher) {
+        String ftpDir = Downloader.parseDirFromString(remotePath, new DirSeparator(DirSeparatorModes.FTP));
+        String ftpName = Downloader.parseNameFromString(remotePath, new DirSeparator(DirSeparatorModes.FTP));
+        FTPPath remoteFTPPath = new FTPPath(ftpDir, ftpName);
 
+        logger.info("-------StartDownloading-------");
+
+        Downloader downloader = new Downloader(controlSocket, this);
+        try {
+            downloader.downloadFileOrDirectory(remoteFTPPath, localPath);
+        } catch (Exception e) {
+            e.printStackTrace();
+            System.out.println(e.toString());
+            logger.warning("-------DownloadInterrupted-------");
+            return;
+        }
+
+        logger.info("-------SuccessfullyDownloaded-------");
     }
 
     @Override
@@ -240,17 +275,33 @@ public class FTPClientImpl implements FTPClient, StreamLogging {
     }
 
     public static void main(String[] args) throws Exception {
+        final String FTP_SERVER_ADDR = "localhost";
+        final String FTP_USERNAME = "zjz";
+
         // log to console
         StreamLogging.addLogPublisher(System.out::println);
         // this is not a singleton
         FTPClient ftp = FTPClientFactory
-                .newMultiThreadFTPClient("192.168.31.94", 21);
-        ftp.login("anonymous", "");
-        ftp.getWorkingDirectory();
-        ftp.rename("a", "abcd");
-        System.out.println(Arrays.toString(ftp.list("a.txt")));
-        ftp.removeDirectory("abs");
-        ftp.changeWorkingDirectory("b");
+                .newMultiThreadFTPClient(FTP_SERVER_ADDR, 21);
+        ftp.login(FTP_USERNAME, "");
+
+//        ftp.getWorkingDirectory();
+//        ftp.rename("a", "abcd");
+//        System.out.println(Arrays.toString(ftp.list("a.txt")));
+//        ftp.removeDirectory("abs");
+//        ftp.changeWorkingDirectory("b");
+
+        ftp.downloadDirectory("/plain/", "C:\\Users\\zjz42\\Desktop\\plain\\", new StatusPublisher() {
+            @Override
+            public int initialize(String localPath, String remotePath, DIRECTION direction, String size) {
+                return 0;
+            }
+
+            @Override
+            public void publish(int id, String status) {
+            }
+        });
+
         Thread.sleep(20000);
         ftp.quit();
     }
