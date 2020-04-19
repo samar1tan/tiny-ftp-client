@@ -1,7 +1,5 @@
 package edu.whu.cs.ftp.client;
 
-import edu.whu.cs.ftp.downloader.Downloader;
-
 import java.io.IOException;
 import java.util.Arrays;
 
@@ -218,7 +216,7 @@ public class FTPClientImpl implements FTPClient, StreamLogging {
 
     @Override
     public void downloadFile(String remotePath, String localPath, StatusPublisher publisher) {
-        Downloader downloader = new Downloader(new FTPPath(remotePath))
+//        Downloader downloader = new Downloader(new FTPPath(remotePath))
     }
 
     @Override
