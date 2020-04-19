@@ -89,7 +89,7 @@ class LocalPathOccupiedException extends LocalDownloadException {
 
     @Override
     public String toString() {
-        return String.format("Local file '%s' already exists.", getWrongPath());
+        return String.format("Local file/directory '%s' already exists.", getWrongPath());
     }
 }
 
@@ -213,5 +213,16 @@ class ParseStatusMessageFailed extends DownloadException {
     @Override
     public String getWrongPath() {
         return null;
+    }
+}
+
+class CreateSaveDirFailed extends LocalDownloadException {
+    public CreateSaveDirFailed(String failDir) {
+        super(failDir);
+    }
+
+    @Override
+    public String toString() {
+        return String.format("Saving directory %s can't be created.", getWrongPath());
     }
 }
