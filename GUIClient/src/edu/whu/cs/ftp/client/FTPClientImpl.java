@@ -233,7 +233,8 @@ public class FTPClientImpl implements FTPClient, StreamLogging {
         logger.info("-------StartDownloading-------");
 
         Downloader downloader = new Downloader(controlSocket, this, publisher);
-        downloader.downloadFileOrDirectory(remoteFTPPath, localPath);
+        downloader.downloadFileOrDirectory(remoteFTPPath, localPath + (localPath.endsWith(File.separator) ?
+                "" : File.separator) + ftpName);
 
         logger.info("-------SuccessfullyDownloaded-------");
     }
@@ -248,7 +249,8 @@ public class FTPClientImpl implements FTPClient, StreamLogging {
         logger.info("-------StartDownloading-------");
 
         Downloader downloader = new Downloader(controlSocket, this, publisher);
-        downloader.downloadFileOrDirectory(remoteFTPPath, localPath);
+        downloader.downloadFileOrDirectory(remoteFTPPath, localPath + (localPath.endsWith(File.separator) ?
+                "" : File.separator) + ftpName);
 
         logger.info("-------SuccessfullyDownloaded-------");
     }
