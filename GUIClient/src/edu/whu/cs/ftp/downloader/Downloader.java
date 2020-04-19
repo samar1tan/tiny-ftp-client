@@ -7,18 +7,21 @@ import java.net.Socket;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Calendar;
+import java.util.Timer;
+import java.util.TimerTask;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class Downloader implements StreamLogging {
     private final ControlSocket controlSocket;
     private final FTPClient ftpClient;
+    private final StatusPublisher guiStatusPublisher;
     private DownloadExpectedStatusCodes expectedStatusCodes;
-//    private DownloadingStates downloadingStates; // TODO: thread to refresh
 
-    public Downloader(ControlSocket controlSocket, FTPClient ftpClient) {
+    public Downloader(ControlSocket controlSocket, FTPClient ftpClient, StatusPublisher guiStatusPublisher) {
         this.controlSocket = controlSocket;
         this.ftpClient = ftpClient;
+        this.guiStatusPublisher = guiStatusPublisher;
         this.expectedStatusCodes = new DownloadExpectedStatusCodes();
     }
 
@@ -55,11 +58,15 @@ public class Downloader implements StreamLogging {
         checkLocalPath(saveTo, fileInfo);
 
         long dataSocketOpenedTimeInMs = Calendar.getInstance().getTimeInMillis();
+        fileInfo.guiStatusID = guiStatusPublisher.initialize(saveTo, downloadFrom.getPath(),
+                StatusPublisher.DIRECTION.DOWNLOAD, String.valueOf(fileInfo.serverFileByteNum));
+        guiStatusPublisher.publish(fileInfo.guiStatusID, "0.00%");
         DataSocket ftpDataSocket;
         if (fileInfo.downloadedByteNum > 0) {
             // REST must be executed right before RETR
             ftpDataSocket = execFTPCommand("RETR", fileInfo.serverFileName,
                     "REST", String.valueOf(fileInfo.downloadedByteNum));
+            publishGUIStatus(fileInfo, guiStatusPublisher);
         } else {
             ftpDataSocket = (DataSocket) execFTPCommand("RETR", fileInfo.serverFileName, true);
         }
@@ -73,6 +80,23 @@ public class Downloader implements StreamLogging {
         } else {
             tempFileStream = new FileOutputStream(tempFilePath);
         }
+
+        Timer publishTimer = new Timer();
+        publishTimer.schedule(new TimerTask() {
+            @Override
+            public void run() {
+                publishGUIStatus(fileInfo, guiStatusPublisher);
+            }
+        }, 0, 100);
+        File isCompleted = new File(fileInfo.localFilePath);
+        new Thread(() -> {
+            while (true) {
+                if (isCompleted.exists()) {
+                    publishTimer.cancel();
+                    break;
+                }
+            }
+        });
 
         InputStream readFromServer = dataSocket.getInputStream();
         BufferedOutputStream tempFileBufferedStream = new BufferedOutputStream(tempFileStream);
@@ -97,6 +121,16 @@ public class Downloader implements StreamLogging {
         ftpDataSocket.close(); // as well as associated InputStream readFromServer
 
         Files.move(tempFilePath.toPath(), Path.of(saveTo));
+        guiStatusPublisher.publish(fileInfo.guiStatusID, "完成");
+    }
+
+    private void publishGUIStatus(FileInfo fileInfo, StatusPublisher guiStatusPublisher) {
+        File localFilePointer = new File(fileInfo.localFilePath + ".ftpdownloading");
+        if (localFilePointer.exists()) {
+            fileInfo.downloadedByteNum = localFilePointer.length();
+            fileInfo.completeRatio.setRatioNum((double) fileInfo.downloadedByteNum / fileInfo.serverFileByteNum);
+            guiStatusPublisher.publish(fileInfo.guiStatusID, fileInfo.completeRatio.getCompleteRatio());
+        }
     }
 
     // DataSocket / String message, depending on parameter getDataSocket
@@ -227,6 +261,23 @@ public class Downloader implements StreamLogging {
     }
 }
 
+class CompleteRatio {
+    private double ratioNum = 0.;
+
+    public void setRatioNum(double ratioNum) {
+        this.ratioNum = ratioNum;
+    }
+
+    public String getCompleteRatio() {
+        return String.format("%.2f%%", ratioNum * 100);
+    }
+
+    @Override
+    public String toString() {
+        return getCompleteRatio();
+    }
+}
+
 class FileInfo {
     public String serverFileName;
     public String serverFileDir;
@@ -235,4 +286,6 @@ class FileInfo {
     public String localFilePath;
     public long serverFileByteNum;
     public long downloadedByteNum;
+    public int guiStatusID;
+    public CompleteRatio completeRatio = new CompleteRatio();
 }
