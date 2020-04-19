@@ -1,19 +1,24 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
 <?import javafx.scene.control.*?>
-<?import javafx.scene.layout.*?>
-
-<AnchorPane fx:id="Pane" prefHeight="622.0" prefWidth="764.0" xmlns="http://javafx.com/javafx/10.0.2-internal" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.company.Controller">
-   <children>
-      <Label layoutX="28.0" layoutY="24.0" text="IP地址：" />
-      <TextField fx:id="TextField_IP" layoutX="73.0" layoutY="20.0" onAction="#getIP" onMouseExited="#getIP" prefHeight="23.0" prefWidth="107.0" />
-      <Label layoutX="208.0" layoutY="24.0" text="用户名：" />
-      <TextField fx:id="TextField_UserName" layoutX="258.0" layoutY="20.0" onAction="#getUserName" onMouseExited="#getUserName" prefHeight="23.0" prefWidth="107.0" />
-      <Label layoutX="388.0" layoutY="24.0" text="密码：" />
-       <PasswordField fx:id="TextField_Password" layoutX="424.0" layoutY="20.0" onAction="#getPassword" onMouseExited="#getPassword" prefHeight="23.0" prefWidth="107.0" />
-      <Label layoutX="555.0" layoutY="24.0" text="端口号：" />
-      <TextField fx:id="TextFiled_Port" layoutX="603.0" layoutY="20.0" onAction="#getPort" onMouseExited="#getPort" prefHeight="23.0" prefWidth="47.0" />
-      <Button fx:id="Button_ConnectOrDisconnect" layoutX="674.0" layoutY="16.0" mnemonicParsing="false" onAction="#ClickConnectOrDisconnect" prefHeight="31.0" prefWidth="60.0" text="连接" />
+<?import javafx.scene.layout.AnchorPane?>
+<AnchorPane fx:id="Pane" prefHeight="622.0" prefWidth="764.0" xmlns="http://javafx.com/javafx/10.0.2-internal"
+            xmlns:fx="http://javafx.com/fxml/1" fx:controller="edu.whu.cs.ftp.gui.Controller">
+    <children>
+        <Label layoutX="28.0" layoutY="24.0" text="IP地址："/>
+        <TextField fx:id="TextField_IP" layoutX="73.0" layoutY="20.0" onAction="#getIP" onMouseExited="#getIP"
+                   prefHeight="23.0" prefWidth="107.0"/>
+        <Label layoutX="208.0" layoutY="24.0" text="用户名："/>
+        <TextField fx:id="TextField_UserName" layoutX="258.0" layoutY="20.0" onAction="#getUserName"
+                   onMouseExited="#getUserName" prefHeight="23.0" prefWidth="107.0"/>
+        <Label layoutX="388.0" layoutY="24.0" text="密码："/>
+        <PasswordField fx:id="TextField_Password" layoutX="424.0" layoutY="20.0" onAction="#getPassword"
+                       onMouseExited="#getPassword" prefHeight="23.0" prefWidth="107.0"/>
+        <Label layoutX="555.0" layoutY="24.0" text="端口号："/>
+        <TextField fx:id="TextFiled_Port" layoutX="603.0" layoutY="20.0" onAction="#getPort" onMouseExited="#getPort"
+                   prefHeight="23.0" prefWidth="47.0"/>
+        <Button fx:id="Button_ConnectOrDisconnect" layoutX="674.0" layoutY="16.0" mnemonicParsing="false"
+                onAction="#ClickConnectOrDisconnect" prefHeight="31.0" prefWidth="60.0" text="连接"/>
       <Separator layoutX="7.0" layoutY="57.0" prefHeight="3.0" prefWidth="747.0" />
       <TextArea fx:id="TextArea_Log" editable="false" layoutX="8.0" layoutY="67.0" prefHeight="78.0" prefWidth="747.0" wrapText="true" />
       <Separator layoutX="5.0" layoutY="152.0" prefHeight="3.0" prefWidth="747.0" />
