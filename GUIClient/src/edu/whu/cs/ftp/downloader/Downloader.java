@@ -1,14 +1,13 @@
 package edu.whu.cs.ftp.downloader;
 
 import edu.whu.cs.ftp.client.*;
+import edu.whu.cs.ftp.uploader.UpLoader;
 
 import java.io.*;
 import java.net.Socket;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Calendar;
-import java.util.Timer;
-import java.util.TimerTask;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -17,15 +16,21 @@ public class Downloader implements StreamLogging {
     private final FTPClient ftpClient;
     private final StatusPublisher guiStatusPublisher;
     private DownloadExpectedStatusCodes expectedStatusCodes;
+//    private boolean isAborted;
 
     public Downloader(ControlSocket controlSocket, FTPClient ftpClient, StatusPublisher guiStatusPublisher) {
         this.controlSocket = controlSocket;
         this.ftpClient = ftpClient;
         this.guiStatusPublisher = guiStatusPublisher;
         this.expectedStatusCodes = new DownloadExpectedStatusCodes();
+//        this.isAborted = false;
     }
 
     public void downloadFileOrDirectory(FTPPath downloadFrom, String saveTo) throws DownloadException, IOException {
+//        if (isAborted) {
+//            return;
+//        }
+
         if (!downloadFrom.isDirectory()) {
             downloadFile(downloadFrom, saveTo);
         } else {
@@ -46,12 +51,9 @@ public class Downloader implements StreamLogging {
         }
     }
 
-    // assume in passive mode (PASV):
-    // client:N & N+1 (N > 1024) -> client:N--control socket--server:21
-    // -> client send PASV -> server:P (P>1024)
-    // -> client get "227 entering passive mode (h1,h2,h3,h4,p1,p2)" -> h1.h2.h3.h4:p1*256+p2
-    // -> client:N+1--data socket--server:P (already in this step when get DataSocket)
-    // CWD -> SIZE -> REST -> RETR
+    /**
+     * assume in passive mode (PASV), CWD -> SIZE -> REST -> RETR
+     */
     private void downloadFile(FTPPath downloadFrom, String saveTo) throws DownloadException, IOException {
         FileInfo fileInfo = new FileInfo();
         checkRemoteFile(downloadFrom, fileInfo);
@@ -59,7 +61,7 @@ public class Downloader implements StreamLogging {
 
         long dataSocketOpenedTimeInMs = Calendar.getInstance().getTimeInMillis();
         fileInfo.guiStatusID = guiStatusPublisher.initialize(saveTo, downloadFrom.getPath(),
-                StatusPublisher.DIRECTION.DOWNLOAD, String.valueOf(fileInfo.serverFileByteNum));
+                StatusPublisher.DIRECTION.DOWNLOAD, getSize(fileInfo.serverFileByteNum));
         guiStatusPublisher.publish(fileInfo.guiStatusID, "0.00%");
         DataSocket ftpDataSocket;
         if (fileInfo.downloadedByteNum > 0) {
@@ -81,26 +83,34 @@ public class Downloader implements StreamLogging {
             tempFileStream = new FileOutputStream(tempFilePath);
         }
 
-        Timer publishTimer = new Timer();
-        publishTimer.schedule(new TimerTask() {
-            @Override
-            public void run() {
-                publishGUIStatus(fileInfo, guiStatusPublisher);
-            }
-        }, 0, 100);
-        File isCompleted = new File(fileInfo.localFilePath);
-        new Thread(() -> {
-            while (true) {
-                if (isCompleted.exists()) {
-                    publishTimer.cancel();
-                    break;
-                }
-            }
-        });
-
         InputStream readFromServer = dataSocket.getInputStream();
         BufferedOutputStream tempFileBufferedStream = new BufferedOutputStream(tempFileStream);
-        readFromServer.transferTo(tempFileBufferedStream);
+        int bytesRead;
+        byte[] byteArrayBuffer = new byte[8192];
+        final int ROUND_NUM_PER_PUBLISH = 10000;
+        int roundNum = 0;
+        while ((bytesRead = readFromServer.read(byteArrayBuffer)) > 0) {
+//            if (Thread.currentThread().isInterrupted()) {
+//                isAborted = true;
+//                break;
+//            }
+
+            tempFileBufferedStream.write(byteArrayBuffer, 0, bytesRead);
+
+            if (roundNum == ROUND_NUM_PER_PUBLISH) {
+                publishGUIStatus(fileInfo, guiStatusPublisher);
+                roundNum = 0;
+            } else {
+                ++roundNum;
+            }
+        }
+
+//        if (!isAborted) {
+//            tempFileBufferedStream.write(cacheByteArray, 0, currentBytePointer);
+//            tempFileBufferedStream.flush();
+//            Files.move(tempFilePath.toPath(), Path.of(saveTo));
+//            guiStatusPublisher.publish(fileInfo.guiStatusID, "完成");
+//        }
         tempFileBufferedStream.flush();
         tempFileBufferedStream.close(); // as well as underlying FileOutputStream tempFileStream
 
@@ -121,6 +131,7 @@ public class Downloader implements StreamLogging {
         ftpDataSocket.close(); // as well as associated InputStream readFromServer
 
         Files.move(tempFilePath.toPath(), Path.of(saveTo));
+
         guiStatusPublisher.publish(fileInfo.guiStatusID, "完成");
     }
 
@@ -133,7 +144,7 @@ public class Downloader implements StreamLogging {
         }
     }
 
-    // DataSocket / String message, depending on parameter getDataSocket
+    /** DataSocket / String message, depending on parameter getDataSocket */
     private Object execFTPCommand(String cmd, String arg, boolean getDataSocket) throws DownloadException, IOException {
         String command = cmd + ' ' + arg;
         if (getDataSocket) {
@@ -153,7 +164,7 @@ public class Downloader implements StreamLogging {
         }
     }
 
-    // REST must be executed right before RETR, without PASV in between
+    /** REST must be executed right before RETR, without PASV in between */
     private DataSocket execFTPCommand(String cmd, String arg, String preSimpleCmd, String preSimpleArg)
             throws DownloadException, IOException {
         String preSimpleCommand = preSimpleCmd + ' ' + preSimpleArg;
@@ -190,7 +201,7 @@ public class Downloader implements StreamLogging {
         return serverFileByteNum;
     }
 
-    // check existence and get size of remote file
+    /** check existence and get size of remote file */
     private void checkRemoteFile(FTPPath remotePath, FileInfo fileInfo)
             throws DownloadException, IOException {
         // change working dir
@@ -208,7 +219,7 @@ public class Downloader implements StreamLogging {
         fileInfo.serverFileByteNum = getServerFileSize(fileInfo.serverFileName, remotePath);
     }
 
-    // check if local path available to save and collect related info
+    /** check if local path available to save and collect related info */
     private void checkLocalPath(String localPath, FileInfo fileInfo) throws DownloadException {
         // check if local path is already occupied
         File pathOccupied = new File(localPath);
@@ -237,6 +248,21 @@ public class Downloader implements StreamLogging {
         if (restByteNum >= availableByteNum) {
             throw new NoEnoughSpaceException(localPath, restByteNum, availableByteNum);
         }
+    }
+
+    public static String getSize(long size) {
+        String fromUploader = UpLoader.getSize(size);
+        String number, unit;
+        char lastNo2 = fromUploader.charAt(fromUploader.length() - 2);
+        if (Character.isDigit(lastNo2)) {
+            unit = "B";
+            number = fromUploader.substring(0, fromUploader.length() - 1);
+        } else {
+            unit = fromUploader.substring(fromUploader.length() - 2);
+            number = fromUploader.substring(0, fromUploader.length() - 2);
+        }
+
+        return number + ' ' + unit;
     }
 
     public static String parseDirFromString(String fullPath, DirSeparator separator) {
