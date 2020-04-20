@@ -16,20 +16,20 @@ public class Downloader implements StreamLogging {
     private final FTPClient ftpClient;
     private final StatusPublisher guiStatusPublisher;
     private DownloadExpectedStatusCodes expectedStatusCodes;
-//    private boolean isAborted;
+    private boolean isAborted;
 
     public Downloader(ControlSocket controlSocket, FTPClient ftpClient, StatusPublisher guiStatusPublisher) {
         this.controlSocket = controlSocket;
         this.ftpClient = ftpClient;
         this.guiStatusPublisher = guiStatusPublisher;
         this.expectedStatusCodes = new DownloadExpectedStatusCodes();
-//        this.isAborted = false;
+        this.isAborted = false;
     }
 
     public void downloadFileOrDirectory(FTPPath downloadFrom, String saveTo) throws DownloadException, IOException {
-//        if (isAborted) {
-//            return;
-//        }
+        if (isAborted) {
+            return;
+        }
 
         if (!downloadFrom.isDirectory()) {
             downloadFile(downloadFrom, saveTo);
@@ -74,7 +74,6 @@ public class Downloader implements StreamLogging {
         }
 
         Socket dataSocket = ftpDataSocket.getDataSocket();
-
         File tempFilePath = new File(fileInfo.localFilePath + ".ftpdownloading");
         FileOutputStream tempFileStream;
         if (fileInfo.downloadedByteNum > 0) {
@@ -82,7 +81,6 @@ public class Downloader implements StreamLogging {
         } else {
             tempFileStream = new FileOutputStream(tempFilePath);
         }
-
         InputStream readFromServer = dataSocket.getInputStream();
         BufferedOutputStream tempFileBufferedStream = new BufferedOutputStream(tempFileStream);
         int bytesRead;
@@ -90,10 +88,10 @@ public class Downloader implements StreamLogging {
         final int ROUND_NUM_PER_PUBLISH = 10000;
         int roundNum = 0;
         while ((bytesRead = readFromServer.read(byteArrayBuffer)) > 0) {
-//            if (Thread.currentThread().isInterrupted()) {
-//                isAborted = true;
-//                break;
-//            }
+            if (Thread.currentThread().isInterrupted()) {
+                isAborted = true;
+                break;
+            }
 
             tempFileBufferedStream.write(byteArrayBuffer, 0, bytesRead);
 
@@ -105,15 +103,8 @@ public class Downloader implements StreamLogging {
             }
         }
 
-//        if (!isAborted) {
-//            tempFileBufferedStream.write(cacheByteArray, 0, currentBytePointer);
-//            tempFileBufferedStream.flush();
-//            Files.move(tempFilePath.toPath(), Path.of(saveTo));
-//            guiStatusPublisher.publish(fileInfo.guiStatusID, "完成");
-//        }
         tempFileBufferedStream.flush();
         tempFileBufferedStream.close(); // as well as underlying FileOutputStream tempFileStream
-
         final long minDataSocketLiveTimeInMs = 1000;
         long dataSocketClosedTimeInMs = Calendar.getInstance().getTimeInMillis();
         long dataSocketLiveTime = dataSocketClosedTimeInMs - dataSocketOpenedTimeInMs;
@@ -130,8 +121,9 @@ public class Downloader implements StreamLogging {
         }
         ftpDataSocket.close(); // as well as associated InputStream readFromServer
 
-        Files.move(tempFilePath.toPath(), Path.of(saveTo));
-
+        if (!isAborted) {
+            Files.move(tempFilePath.toPath(), Path.of(saveTo));
+        }
         guiStatusPublisher.publish(fileInfo.guiStatusID, "完成");
     }
 
