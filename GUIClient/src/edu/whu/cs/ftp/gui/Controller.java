@@ -186,11 +186,19 @@ public class Controller implements Initializable, StreamLogging {
             String c = (chosenServerDir_str.charAt(chosenServerDir_str.length() - 1) == '/') ? "" : "/";
             if (localFile.isFile()) {         //上传文件
                 //文件上传
-                ftp.uploadFile(chosenLocalFile_str, chosenServerDir_str + c + newName, statusPublisher);
+                try {
+                    ftp.uploadFile(chosenLocalFile_str, chosenServerDir_str + c + newName, statusPublisher);
+                } catch (Throwable throwable) {
+                    throwable.printStackTrace();
+                }
                 logger.info(chosenLocalFile_str + " 文件上传成功");
             } else {                           //上传目录
                 //目录上传
-                ftp.uploadDirectory(chosenLocalFile_str, chosenServerDir_str + c + newName, statusPublisher);
+                try {
+                    ftp.uploadDirectory(chosenLocalFile_str, chosenServerDir_str + c + newName, statusPublisher);
+                } catch (Throwable throwable) {
+                    throwable.printStackTrace();
+                }
                 logger.info(chosenLocalFile_str + " 目录上传成功");
             }
         }
@@ -234,11 +242,19 @@ public class Controller implements Initializable, StreamLogging {
             String c = (chosenLocalDir_str.charAt(chosenLocalDir_str.length() - 1) == File.separatorChar) ? "" : File.separator;
             if (!chosenServerFile_path.isDirectory()) {          //下载文件
                 //文件下载
-                ftp.downloadFile(chosenServerFile_str, chosenLocalDir_str + c + newName, statusPublisher);
+                try {
+                    ftp.downloadFile(chosenServerFile_str, chosenLocalDir_str + c + newName, statusPublisher);
+                } catch (Throwable throwable) {
+                    throwable.printStackTrace();
+                }
                 logger.info(chosenServerFile_str + " 文件下载成功");
             } else {
                 //目录下载
-                ftp.downloadDirectory(chosenServerFile_str, chosenLocalDir_str + c + newName, statusPublisher);
+                try {
+                    ftp.downloadDirectory(chosenServerFile_str, chosenLocalDir_str + c + newName, statusPublisher);
+                } catch (Throwable throwable) {
+                    throwable.printStackTrace();
+                }
                 logger.info(chosenServerFile_str + " 目录下载成功");
             }
         }
