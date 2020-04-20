@@ -23,8 +23,8 @@ import javafx.scene.image.ImageView;
 import javafx.scene.layout.*;
 
 import java.awt.*;
-import java.io.File;
-import java.io.IOException;
+import java.awt.Menu;
+import java.io.*;
 import java.net.URL;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -125,6 +125,28 @@ public class Controller implements Initializable, StreamLogging {
                 getLocalDir(0);
                 TextField_ServerDir.setText("/");
                 getServerDir(0);
+                File file = new File("info.txt");
+                if(!file.exists()){
+                    try {
+                        file.createNewFile();
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                }
+                try {
+                    FileWriter fw = new FileWriter(file,false);
+                    BufferedWriter bufferedWriter = new BufferedWriter(fw);
+                    bufferedWriter.write(ip_address + "\n");
+                    bufferedWriter.write(userName + "\n");
+                    bufferedWriter.write(password + "\n");
+                    bufferedWriter.write(port + "\n");
+                    bufferedWriter.flush();
+                    fw.close();
+                } catch (FileNotFoundException e) {
+                    e.printStackTrace();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
             }
             else{
                 logger.info("用户名或密码错误");
@@ -885,6 +907,28 @@ public class Controller implements Initializable, StreamLogging {
     //初始化函数
     @Override
     public void initialize(URL url, ResourceBundle resourceBundle) {
+        File file = new File("info.txt");
+        if(file.exists()){
+            try {
+                InputStreamReader read = new InputStreamReader(new FileInputStream(file));
+                BufferedReader bufferedReader = new BufferedReader(read);
+                String lineTxt = null;
+                lineTxt = bufferedReader.readLine();
+                TextField_IP.setText(lineTxt);
+                lineTxt = bufferedReader.readLine();
+                TextField_UserName.setText(lineTxt);
+                lineTxt = bufferedReader.readLine();
+                TextField_Password.setText(lineTxt);
+                lineTxt = bufferedReader.readLine();
+                TextFiled_Port.setText(lineTxt);
+                read.close();
+            } catch (FileNotFoundException e) {
+                e.printStackTrace();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+
         //重定向日志输出
         StreamLogging.addLogPublisher(new StreamLoggingPublisher() {
             @Override
@@ -946,6 +990,13 @@ public class Controller implements Initializable, StreamLogging {
         });
 
         MenuButton_LocalFileOp.setGraphic(new ImageView(new Image("file:icon\\menu.png")));
+        MenuItem localItem0 = new MenuItem("刷新");
+        localItem0.setOnAction(new EventHandler<ActionEvent>() {
+            @Override
+            public void handle(ActionEvent actionEvent) {
+                getLocalDir(1);
+            }
+        });
         MenuItem localItem1 = new MenuItem("重命名");
         localItem1.setOnAction(new EventHandler<ActionEvent>() {
             @Override
@@ -975,7 +1026,7 @@ public class Controller implements Initializable, StreamLogging {
             }
         });
         MenuButton_LocalFileOp.getItems().clear();
-        MenuButton_LocalFileOp.getItems().addAll(localItem1,localItem2,localItem3,localItem4);
+        MenuButton_LocalFileOp.getItems().addAll(localItem0,localItem1,localItem2,localItem3,localItem4);
 
         MenuButton_ServerFileOp.setGraphic(new ImageView(new Image("file:icon\\menu.png")));
         MenuItem serverItem0 = new MenuItem("Help");
@@ -1020,8 +1071,15 @@ public class Controller implements Initializable, StreamLogging {
                 ClickServerGWD();
             }
         });
+        MenuItem serverItem6 = new MenuItem("刷新");
+        serverItem6.setOnAction(new EventHandler<ActionEvent>() {
+            @Override
+            public void handle(ActionEvent actionEvent) {
+                getServerDir(1);
+            }
+        });
         MenuButton_ServerFileOp.getItems().clear();
-        MenuButton_ServerFileOp.getItems().addAll(serverItem0,serverItem1,serverItem2,serverItem3,serverItem4,serverItem5);
+        MenuButton_ServerFileOp.getItems().addAll(serverItem6,serverItem0,serverItem1,serverItem2,serverItem3,serverItem4,serverItem5);
 
         //本地目录列表 监听单击item事件
         ListView_LocalDir.getSelectionModel().selectedItemProperty().addListener(new ChangeListener<Label>() {
@@ -1109,7 +1167,7 @@ public class Controller implements Initializable, StreamLogging {
         sizeColumn.setMinWidth(20);
         sizeColumn.setStyle("-fx-alignment: CENTER;");
         sizeColumn.setCellValueFactory(new PropertyValueFactory<>("size"));
-        TableColumn<State,String> stateColumn = new TableColumn<>("传输状态");
+        TableColumn<State,String> stateColumn = new TableColumn<>("传输进度");
         stateColumn.setMinWidth(200);
         stateColumn.setStyle("-fx-alignment: CENTER;");
         stateColumn.setCellValueFactory(new PropertyValueFactory<>("state"));
