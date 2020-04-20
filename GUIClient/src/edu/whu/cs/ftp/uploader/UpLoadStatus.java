@@ -10,4 +10,5 @@ enum UploadStatus {
     DeleteServerFileFail, //删除远程文件失败
     UpLoadDirectoryFinish, //文件夹传送完成
     SeverPathWrong;//远程路径错误
+    IsAborted;//传输终止
 }
