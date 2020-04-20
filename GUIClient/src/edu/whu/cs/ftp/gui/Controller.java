@@ -420,7 +420,7 @@ public class Controller implements Initializable, StreamLogging {
             }
         });
         contextMenuFile.getItems().clear();
-        contextMenuFile.getItems().addAll(localItem5,localItem3,locaItem4);
+        contextMenuFile.getItems().addAll(locaItem4,localItem5,localItem3);
         contextMenuDir.getItems().clear();
         contextMenuDir.getItems().addAll(localItem0,localItem1,localItem2);
         if(file.isFile()){                               //如果是文件
@@ -498,6 +498,7 @@ public class Controller implements Initializable, StreamLogging {
         } catch (Exception e) {
             e.printStackTrace();
         }
+
         try {
             chosenServerDir_str = ftp.getWorkingDirectory();
         } catch (Exception e) {
