@@ -23,17 +23,17 @@ public class ConnectMySQL {
             System.out.println("Failed connecting to the Database!");
         }
 
-        createDB();
 
-        con = DriverManager.getConnection(this.url + "/upload" + "?useUnicode=true&characterEncoding=utf-8&useSSL=false&serverTimezone=UTC","root","password");
+        createDB();
+        
+        con = DriverManager.getConnection(this.url + "/upload" + "?useUnicode=true&characterEncoding=utf-8&useSSL=false&serverTimezone=UTC",this.user,this.password);
+
 
         if(con.isClosed())
         {
             System.out.println("Failed connecting to the Database!");
         }
-
         createTable();
-
     }
 
     //关闭数据库连接
