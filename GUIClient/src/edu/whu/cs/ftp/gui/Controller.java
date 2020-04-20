@@ -120,7 +120,7 @@ public class Controller implements Initializable, StreamLogging {
                 else
                     logger.info("连接成功");
                 isConnected = true;
-                Button_ConnectOrDisconnect.setText("退出");
+                Button_ConnectOrDisconnect.setText("断开");
                 TextField_LocalDir.setText(File.listRoots()[0].toString());
                 getLocalDir(0);
                 TextField_ServerDir.setText("/");
