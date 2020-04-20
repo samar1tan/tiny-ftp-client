@@ -37,6 +37,8 @@ public class ControlSocket implements StreamLogging {
      */
     public ControlSocket(String addr, int port) throws IOException {
         controlSocket = new Socket(addr, port);
+        logger.severe("Please ensure your FTP server NOT set NO_TRANSFER_TIMEOUT, otherwise control " +
+                "connection will be closed automatically by server and this client would crash!");
         reader = new BufferedReader(new InputStreamReader(
                 controlSocket.getInputStream(), StandardCharsets.UTF_8));
         writer = new BufferedWriter(new OutputStreamWriter(
