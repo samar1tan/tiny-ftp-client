@@ -261,8 +261,10 @@ public class FTPClientImpl implements FTPClient, StreamLogging {
         UpLoader uploader = new UpLoader(this, controlSocket, publisher);
         Path local_path = Paths.get(localPath);
         File localFile = local_path.toFile();
-        FTPPath server_path = new FTPPath(remotePath, "");
-        uploader.UpLoadDirectory(local_path, server_path);
+        String serverFileName = remotePath.trim();
+        serverFileName = serverFileName.substring(serverFileName.lastIndexOf("/") + 1);
+        FTPPath server_path = new FTPPath(remotePath.substring(0, remotePath.lastIndexOf("/")), "");
+        uploader.UpLoadFile(local_path, server_path, serverFileName);
         uploader.db.close();
     }
 
@@ -271,10 +273,11 @@ public class FTPClientImpl implements FTPClient, StreamLogging {
             throws IOException, SQLException {
         UpLoader uploader = new UpLoader(this, controlSocket, publisher);
         Path local_path = Paths.get(localPath);
-        FTPPath server_path = new FTPPath(remotePath, "");
-        uploader.UpLoadDirectory(local_path, server_path);
+        String serverDirectoryName = remotePath.trim();
+        serverDirectoryName = serverDirectoryName.substring(serverDirectoryName.lastIndexOf("/") + 1);
+        FTPPath server_path = new FTPPath(remotePath.substring(0, remotePath.lastIndexOf("/")), "");
+        uploader.UpLoadDirectory(local_path, server_path, serverDirectoryName);
         uploader.db.close();
-
     }
 
     @Override
