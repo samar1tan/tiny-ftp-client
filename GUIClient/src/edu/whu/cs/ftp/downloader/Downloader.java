@@ -85,7 +85,7 @@ public class Downloader implements StreamLogging {
         BufferedOutputStream tempFileBufferedStream = new BufferedOutputStream(tempFileStream);
         int bytesRead;
         byte[] byteArrayBuffer = new byte[8192];
-        final int ROUND_NUM_PER_PUBLISH = 10000;
+        final int ROUND_NUM_PER_PUBLISH = 1000;
         int roundNum = 0;
         while ((bytesRead = readFromServer.read(byteArrayBuffer)) > 0) {
             if (Thread.currentThread().isInterrupted()) {
