@@ -7,6 +7,7 @@ import java.io.*;
 import java.net.Socket;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.Calendar;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -117,12 +118,13 @@ public class Downloader implements StreamLogging {
                 Thread.sleep(1000);
             } catch (InterruptedException e) {
                 e.printStackTrace();
+                isAborted = true;
             }
         }
         ftpDataSocket.close(); // as well as associated InputStream readFromServer
 
         if (!isAborted) {
-            Files.move(tempFilePath.toPath(), Path.of(saveTo));
+            Files.move(tempFilePath.toPath(), Paths.get(saveTo));
         }
         guiStatusPublisher.publish(fileInfo.guiStatusID, "完成");
     }
