@@ -39,6 +39,9 @@ public class ControlSocket implements StreamLogging {
         controlSocket = new Socket(addr, port);
         logger.severe("Please ensure your FTP server NOT set NO_TRANSFER_TIMEOUT, otherwise control " +
                 "connection will be closed automatically by server and this client would crash!");
+        logger.severe("Known NOT supported FTP server: vsFTPd (lack FTP command MLSD)");
+        logger.info("Known supported FTP server: FileZilla Server. You can download it from " +
+                "https://filezilla-project.org/download.php?type=server");
         reader = new BufferedReader(new InputStreamReader(
                 controlSocket.getInputStream(), StandardCharsets.UTF_8));
         writer = new BufferedWriter(new OutputStreamWriter(
