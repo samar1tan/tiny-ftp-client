@@ -242,19 +242,31 @@ public class Downloader implements StreamLogging {
         }
     }
 
+    /** transfer long file size in bytes into readable format */
     public static String getSize(long size) {
-        String fromUploader = UpLoader.getSize(size);
-        String number, unit;
-        char lastNo2 = fromUploader.charAt(fromUploader.length() - 2);
-        if (Character.isDigit(lastNo2)) {
-            unit = "B";
-            number = fromUploader.substring(0, fromUploader.length() - 1);
+        //以B为单位
+        if (size < 1024) {
+            return String.valueOf(size) + " B";
         } else {
-            unit = fromUploader.substring(fromUploader.length() - 2);
-            number = fromUploader.substring(0, fromUploader.length() - 2);
+            size = size / 1024;
         }
 
-        return number + ' ' + unit;
+        //以KB为单位
+        if (size < 1024) {
+            return String.valueOf(size) + " KB";
+        } else {
+            size = size / 1024;
+        }
+
+        if (size < 1024) {
+            //以MB为单位
+            size = size * 100;
+            return String.valueOf((size / 100)) + "." + String.valueOf((size % 100)) + " MB";
+        } else {
+            //以GB为单位
+            size = size * 100 / 1024;
+            return String.valueOf((size / 100)) + "." + String.valueOf((size % 100)) + " GB";
+        }
     }
 
     public static String parseDirFromString(String fullPath, DirSeparator separator) {
