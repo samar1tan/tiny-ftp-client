@@ -263,7 +263,6 @@ public class FTPClientImpl implements FTPClient, StreamLogging {
         serverFileName = serverFileName.substring(serverFileName.lastIndexOf("/") + 1);
         FTPPath server_path = new FTPPath(remotePath.substring(0, remotePath.lastIndexOf("/")), "");
         uploader.UpLoadFile(local_path, server_path, serverFileName);
-        uploader.db.close();
     }
 
     @Override
@@ -275,7 +274,6 @@ public class FTPClientImpl implements FTPClient, StreamLogging {
         serverDirectoryName = serverDirectoryName.substring(serverDirectoryName.lastIndexOf("/") + 1);
         FTPPath server_path = new FTPPath(remotePath.substring(0, remotePath.lastIndexOf("/")), "");
         uploader.UpLoadDirectory(local_path, server_path, serverDirectoryName);
-        uploader.db.close();
     }
 
     @Override

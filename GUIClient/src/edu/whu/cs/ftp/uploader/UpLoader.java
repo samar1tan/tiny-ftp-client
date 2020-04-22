@@ -7,11 +7,12 @@ import java.text.NumberFormat;
 
 import edu.whu.cs.ftp.client.*;
 
+/*封奇志*/
+/*UpLoader类:实现上传的相关操作*/
 public class UpLoader implements StreamLogging {
     private ControlSocket controlSocket;
     private DataSocket dataSocket;
     private FTPClient ftpClient;
-    public ConnectMySQL db = new ConnectMySQL();
     private int id;
     private StatusPublisher publisher;
     private boolean isAborted;
@@ -49,61 +50,61 @@ public class UpLoader implements StreamLogging {
 
         //检查远程是否存在文件
         FTPPath[] files = ftpClient.list(serverFileName);
+        //存在同名文件
+        if(files != null)
+        {
+            result = UpLoadStatus.FileExits;
+            logger.info("FileExits");
+            return result;
+        }
+
+        files = ftpClient.list(serverFileName + ".uploading");
         if(files == null)
         {
-            db.add(localFile.getPath(), server_path.getPath() + serverFileName, String.valueOf(localFile.length()));
-
             //初始化状态信息
             id = publisher.initialize(localFile.getPath(), server_path.getPath(), StatusPublisher.DIRECTION.UPLOAD, getSize(localFile.length()));
-            result = Start(serverFileName, localFile);
+            result = Start(serverFileName + ".uploading", localFile);
             if(result == UpLoadStatus.UploadNewFileSuccess)
             {
-                db.delete(localFile.getPath(), server_path.getPath() + serverFileName, String.valueOf(localFile.length()));
+                ftpClient.rename(serverFileName + ".uploading", serverFileName);
             }
         }
         else
         {
             long serverFileSize = files[0].getSize();
             long localFileSize = localFile.length();
-            //以前不存在上传记录，说明存在同名文件
-            if(!db.check(localFile.getPath(), server_path.getPath() + serverFileName, String.valueOf(localFile.length())))
-            {
 
-                result = UpLoadStatus.FileExits;
-                logger.info("FileExits");
-                return result;
+            //移动文件内读取指针，实现断点续传
+            id = publisher.initialize(localFile.getPath(), server_path.getPath(), StatusPublisher.DIRECTION.UPLOAD, getSize(localFile.length()));
+            result = Continue(serverFileName + ".uploading", localFile, serverFileSize);
+
+
+            //断点续传失败，重新上传
+            if(result == UpLoadStatus.UploadFromBreakFail)
+            {
+                logger.info("UploadFromBreakFail,TryAgain");
+                if(!ftpClient.deleteFile(serverFileName + ".uploading"))
+                {
+                    result = UpLoadStatus.DeleteServerFileFail;
+                    logger.info("DeleteServerFail");
+                    return result;
+                }
+
+
+                id = publisher.initialize(localFile.getPath(), server_path.getPath(), StatusPublisher.DIRECTION.UPLOAD, getSize(localFile.length()));
+
+                result = Start(serverFileName + ".uploading", localFile);
+                if(result == UpLoadStatus.UploadNewFileSuccess)
+                {
+                    ftpClient.rename(serverFileName + ".uploading", serverFileName);
+                }
+
             }
             else
             {
-                //移动文件内读取指针，实现断点续传
-                id = publisher.initialize(localFile.getPath(), server_path.getPath(), StatusPublisher.DIRECTION.UPLOAD, getSize(localFile.length()));
-                result = Continue(serverFileName, localFile, serverFileSize);
-
-                //断点续传失败，重新上传
-                if(result == UpLoadStatus.UploadFromBreakFail)
-                {
-                    logger.info("UploadFromBreakFail,TryAgain");
-                    if(!ftpClient.deleteFile(serverFileName))
-                    {
-                        result = UpLoadStatus.DeleteServerFileFail;
-                        logger.info("DeleteServerFail");
-                        return result;
-                    }
-
-                    db.delete(localFile.getPath(), server_path.getPath() + serverFileName, String.valueOf(localFile.length()));
-
-                    id = publisher.initialize(localFile.getPath(), server_path.getPath(), StatusPublisher.DIRECTION.UPLOAD, getSize(localFile.length()));
-
-                    result = Start(serverFileName, localFile);
-                }
-                else{
-                    db.delete(localFile.getPath(), server_path.getPath() + serverFileName, String.valueOf(localFile.length()));
-
-                }
+                ftpClient.rename(serverFileName + ".uploading", serverFileName);
             }
-
         }
-
         return result;
     }
 
@@ -116,13 +117,14 @@ public class UpLoader implements StreamLogging {
         if (isAborted) {
             return UpLoadStatus.IsAborted;
         }
+
         File fs = local_path.toFile();
 
         logger.info("UpLoadDirectory:" + fs.getPath() + "-->" + server_path.getPath());
 
         if(fs.isFile())
         {
-           return UpLoadFile(local_path, server_path, fs.getName());
+            return UpLoadFile(local_path, server_path, fs.getName());
         }
         else
         {
@@ -160,6 +162,7 @@ public class UpLoader implements StreamLogging {
         float step = localFile.length();
         float process = 0;
         float localRead = 0;
+        boolean result;
 
         dataSocket = controlSocket.execute("STOR " + serverFileName, 150);
 
@@ -197,6 +200,8 @@ public class UpLoader implements StreamLogging {
                 }
 
             }
+
+
             out.flush();
             raf.close();
             out.close();
@@ -215,7 +220,6 @@ public class UpLoader implements StreamLogging {
             dataSocket.close();
         }
 
-        boolean result;
         if(process < 1)
         {
             result = false;
@@ -241,6 +245,7 @@ public class UpLoader implements StreamLogging {
         float step = localFile.length();
         float process = 0;
         float localRead = 0;
+        boolean result;
 
         logger.info("UploadFromBreakStart:" + localFile.getPath());
 
@@ -297,7 +302,7 @@ public class UpLoader implements StreamLogging {
             dataSocket.close();
         }
 
-        boolean result;
+
         if(process < 1)
         {
             result = false;
@@ -315,7 +320,9 @@ public class UpLoader implements StreamLogging {
         return status;
     }
 
-    //将文件大小转换为字符串形式输出
+    /*
+    将文件大小转换为字符串形式输出
+    */
     public static String getSize(long size) {
 
         //以B为单位
