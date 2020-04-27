@@ -1,6 +1,6 @@
 # Tiny FTP Client
 
-Complying with a limited subset of RFC [959](http://www.rfcreader.com/#rfc959) & [3659](http://www.rfcreader.com/#rfc3659), a multithreading (i.e., [deadlock-prone](https://github.com/samar1tan/tiny-ftp-client/issues/1)) FTP client written in Java socket programming and [JavaFX 11](https://openjfx.io/) GUI framework, which supports the continuation of downloading / uploading and parallel transfers.
+Complying with a limited subset of RFC [959](http://www.rfcreader.com/#rfc959) & [3659](http://www.rfcreader.com/#rfc3659), a multithreading (i.e., [deadlock-prone](https://github.com/samar1tan/tiny-ftp-client/issues/1)) FTP client written in Java socket programming and [JavaFX 11](https://openjfx.io/) GUI framework, which supports the resuming of interrupted downloading / uploading and parallel transfers.
 
 We develop this with pride for our course — *Application Design of Computer Networks, Wuhan University*.
 
