@@ -55,7 +55,7 @@ java -jar tiny-ftp-client-specific_ver.jar
 
 Enjoy it!
 
-**If the application fails to start because of dependencies, **you can clone this repo and use Maven or IntelliJ+Maven (recommended) to build and run.
+**If the application fails to start because of dependencies,** you can clone this repo and use Maven or IntelliJ+Maven (recommended) to build and run.
 
 **Please notice we haven't support [vsFTPd](https://security.appspot.com/vsftpd.html), which is widely deployed on Linux FTP servers**, because it lacks FTP command `MLSD`. You can use another outstanding, free software **[FileZilla Server](https://filezilla-project.org/download.php?type=server)**.
 
