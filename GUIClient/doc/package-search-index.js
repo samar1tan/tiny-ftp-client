@@ -1,1 +1,0 @@
-packageSearchIndex = [{"l":"edu.whu.cs.ftp.client","h":"","u":""},{"l":"所有程序包","h":"","u":"allpackages-index.html"}]

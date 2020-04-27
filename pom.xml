@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>edu.whu.cs.ftp</groupId>
+    <artifactId>tiny-ftp-client</artifactId>
+    <version>0.1</version>
+
+    <properties>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <maven.compiler.source>11</maven.compiler.source>
+        <maven.compiler.target>11</maven.compiler.target>
+    </properties>
+
+    <dependencies>
+        <dependency>
+            <groupId>org.openjfx</groupId>
+            <artifactId>javafx-controls</artifactId>
+            <version>11.0.2</version>
+        </dependency>
+        <dependency>
+            <groupId>org.openjfx</groupId>
+            <artifactId>javafx-fxml</artifactId>
+            <version>11.0.2</version>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <artifactId>maven-shade-plugin</artifactId>
+                <version>3.2.3</version>
+                <executions>
+                    <execution>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>shade</goal>
+                        </goals>
+                    </execution>
+                </executions>
+                <configuration>
+                    <transformers>
+                        <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+                            <mainClass>ftp.gui.SuperMain</mainClass>
+                        </transformer>
+                    </transformers>
+                </configuration>
+            </plugin>
+
+            <plugin>
+                <groupId>com.akathist.maven.plugins.launch4j</groupId>
+                <artifactId>launch4j-maven-plugin</artifactId>
+                <version>1.7.25</version>
+                <executions>
+                    <execution>
+                        <id>l4j-gui</id>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>launch4j</goal>
+                        </goals>
+                        <configuration>
+                            <headerType>gui</headerType>
+                            <outfile>target/tiny-ftp-client-0.1.exe</outfile>
+                            <jar>target/tiny-ftp-client-0.1.jar</jar>
+                            <errTitle>Tiny FTP Client</errTitle>
+                            <classPath>
+                                <mainClass>ftp.gui.SuperMain</mainClass>
+                            </classPath>
+                            <jre>
+                                <minVersion>11</minVersion>
+                            </jre>
+                            <icon>src/main/resources/ico/symble.ico</icon>
+                            <versionInfo>
+                                <fileVersion>1.2.3.4</fileVersion>
+                                <txtFileVersion>don't know how this works</txtFileVersion>
+                                <fileDescription>a tiny FTP client complying with RFCs</fileDescription>
+                                <copyright>copyright 2020 FxxkMultiThreading Group</copyright>
+                                <productVersion>0.0.0.1</productVersion>
+                                <txtProductVersion>0.1</txtProductVersion>
+                                <productName>Tiny-FTP-Client</productName>
+                                <internalName>tiny-ftp-client</internalName>
+                                <originalFilename>original.exe</originalFilename>
+                            </versionInfo>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-site-plugin</artifactId>
+                <version>3.9.0</version>
+            </plugin>
+        </plugins>
+    </build>
+</project>
+
