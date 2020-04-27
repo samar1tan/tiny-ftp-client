@@ -1,49 +1,74 @@
-# ftp-client
+# Tiny FTP Client
 
-### Doc
-- [FTP Tool Set Documentation](https://www.anonymousnet.top/doc/)
+Complying with a limited subset of RFC [959](http://www.rfcreader.com/#rfc959) & [3659](http://www.rfcreader.com/#rfc3659), a multithreading (i.e., [deadlock-prone](https://github.com/samar1tan/tiny-ftp-client/issues/1)) FTP client written in Java socket programming and [JavaFx](https://openjfx.io/) GUI framework, which supports the continuation of downloading / uploading and parallel transfers.
 
-#### Requirements
+We develop this with pride for our course — *Application Design of Computer Networks, Wuhan University*.
 
-- [ ] Windows GUI
-- [ ] 实现FTP协议，socket编程，从创建socket建立TCP连接开始，不得调用第三方控件
-    - [ ] 上传
-    - [ ] 下载
-    - [ ] 断点续传（可选）
-- [x] 标准的FTP服务器
+## Install
 
-#### Description
+Before you start, please ensure your JDK (or JRE alone) has been installed, path variable (`JAVA_HOME`) has been appropriately set, and the current version is `11` by running `java -version` on the command line.
 
-{**When you're done, you can delete the content in this README and update the file with details for others getting started with your repository**}
+> Why JDK 11?
+>
+> JDK 8 and 11 are the only two [LTS (Long-Term Support) versions](https://en.wikipedia.org/wiki/Java_version_history) for now, which means better stability and continuous fixes, and 8 is older. 
 
-#### Software Architecture
-Software architecture description
+**If you haven't installed JDK / JRE / "Java" before**, you can visit [this site](https://www.oracle.com/java/technologies/javase-jdk11-downloads.html) to download Oracle JDK installer of your platform, or [OpenJDK's version](https://jdk.java.net/java-se-ri/11) if you prefer open sources.
 
-#### Installation
+You can check your setting of path variable from command line by
 
-1.  xxxx
-2.  xxxx
-3.  xxxx
+- Linux Shell
 
-#### Instructions
+```sh
+echo $JAVA_HOME
+```
 
-1.  xxxx
-2.  xxxx
-3.  xxxx
+- Windows CMD
 
-#### Contribution
+```cmd
+echo %JAVA_HOME%
+```
 
-1.  Fork the repository
-2.  Create Feat_xxx branch
-3.  Commit your code
-4.  Create Pull Request
+**If you have installed JDK / JRE / "Java" from Oracle on Windows before**,  its installer will add extra contents (pointing to `java.exe`) to environment variable `PATH`, which is prior to `JAVA_HOME` and lead a mismatching when doubly clicking`tiny-ftp-client-specific_ver.exe`. Thus, if you need to upgrade/downgrade your JDK / JRE / “Java”, please remember to remove those contents subsequently.
 
+Once done, do sanity check by running
 
-#### Gitee Feature
+```bash
+java -version
+```
 
-1.  You can use Readme\_XXX.md to support different languages, such as Readme\_en.md, Readme\_zh.md
-2.  Gitee blog [blog.gitee.com](https://blog.gitee.com)
-3.  Explore open source project [https://gitee.com/explore](https://gitee.com/explore)
-4.  The most valuable open source project [GVP](https://gitee.com/gvp)
-5.  The manual of Gitee [https://gitee.com/help](https://gitee.com/help)
-6.  The most popular members  [https://gitee.com/gitee-stars/](https://gitee.com/gitee-stars/)
+You should see prompts like
+
+```
+java version "11.0.7" 2020-04-14 LTS
+```
+
+Finally, please download artifacts of your platform from [our release page](https://github.com/samar1tan/tiny-ftp-client/releases)
+
+## Usage
+
+- EXE: just doubly click it.
+- JAR: launch it from command line:
+
+```bash
+java -jar tiny-ftp-client-specific_ver.jar
+```
+
+Enjoy it!
+
+**If the application fails to start because of dependencies, **you can clone this repo and use Maven or IntelliJ+Maven (recommended) to build and run.
+
+**Please notice we haven't support [vsFTPd](https://security.appspot.com/vsftpd.html), which is widely deployed on Linux FTP servers**, because it lacks FTP command `MLSD`. You can use another outstanding, free software **[FileZilla Server](https://filezilla-project.org/download.php?type=server)**.
+
+## Contributing
+
+PRs accepted and welcomed. *Although we believe no one else will have an interest. :P*
+
+## License
+
+GPLv3 © FxxkMultiThreading Group
+
+## See Also
+
+**For more information about the project**, dependencies, and configuration details used by Maven to build the project, please see [pom.xml](pom.xml)
+
+**For Javadoc**, please click [here](https://samaritan.cn/javadoc/tiny-ftp-client/index.html) for online reading.
