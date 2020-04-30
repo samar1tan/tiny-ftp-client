@@ -28,7 +28,7 @@ echo $JAVA_HOME
 echo %JAVA_HOME%
 ```
 
-**If you have installed JDK / JRE / "Java" from Oracle on Windows before**,  its installer will add extra contents (pointing to `java.exe`) to environment variable `PATH`, which is prior to `JAVA_HOME` and lead a mismatching when doubly clicking`tiny-ftp-client-specific_ver.exe`. Thus, if you need to upgrade/downgrade your JDK / JRE / “Java”, please remember to remove those contents subsequently.
+**If you have installed JDK / JRE / "Java" from Oracle on Windows before**,  its installer will add extra contents (pointing to `java.exe`) to environment variable `PATH`, which is prior to `JAVA_HOME` and lead a mismatching when doubly clicking`tiny-ftp-client-specific_ver.exe`. Thus, if you need to upgrade/downgrade your JDK / JRE / "Java", please remember to remove those contents subsequently.
 
 Once done, do sanity check by running
 
